@@ -208,7 +208,11 @@ int main(int argc, char **argv)
     robot->step(xnext, x.head(robot->nx), u.head(robot->nu), robot->ref_dt);
     sol.states.push_back(xnext);
     sol.actions.push_back(u);
-    warm_start = shift_and_pad(sol_window, N);
+    if (!init_file.empty()) {
+      warm_start = shift_and_pad(init_guess, N);
+    } else { 
+      warm_start = shift_and_pad(sol_broken, N);
+    }
     ensure_horizon(warm_start, N);
     x_init = xnext;
     if (robot->distance(sol.states.back(), problem.goal) < goal_tol)
