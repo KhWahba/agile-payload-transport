@@ -188,7 +188,7 @@ int main(int argc, char **argv)
   {
     fail_threshold = opt_file["fail_threshold"].as<double>();
   }
-  double goal_tol = 1e-2;
+  double goal_tol = 1e-1;
   if (opt_file["goal_tol"])
   {
     goal_tol = opt_file["goal_tol"].as<double>();
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
     if (!init_file.empty()) {
       warm_start = shift_and_pad(init_guess, N);
     } else { 
-      warm_start = shift_and_pad(sol_broken, N);
+      warm_start = shift_and_pad(sol_window, N);
     }
     ensure_horizon(warm_start, N);
     x_init = xnext;
@@ -232,13 +232,14 @@ int main(int argc, char **argv)
     }
     std::cout << "Step " << k << " done. Current position: " << xnext.transpose() << std::endl;
   }
-  if (max_steps == 1)
+  if (max_steps < 2)
     sol = sol_window; // if only one step, show ghost of init
   std::cout << "states size: " << sol.states.size() << std::endl;
   std::cout << "actions size: " << sol.actions.size() << std::endl;
+  Problem problem_final(env_file.c_str());
   sol.cost = sol.actions.size() * robot->ref_dt; // time cost
-  sol.start = problem.start;
-  sol.goal = problem.goal;
+  sol.start = problem_final.start;
+  sol.goal = problem_final.goal;
   sol.check(robot, true);
   if (!results_path.empty())
   {
