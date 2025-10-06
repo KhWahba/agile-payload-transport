@@ -72,7 +72,7 @@ Model_MujocoQuadsPayload::Model_MujocoQuadsPayload(
   if (!d) {
       throw std::runtime_error("mj_makeData failed");
   }
-
+  u_ref = Eigen::VectorXd::Ones(4 * params.num_robots);
   tmp = mj_makeData(m);
   if (!tmp) {
       throw std::runtime_error("mj_makeData (tmp) failed");
