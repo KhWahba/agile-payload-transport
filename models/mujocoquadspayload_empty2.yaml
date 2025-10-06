@@ -14,6 +14,6 @@ distance_weights_payload_vel: [0.05, 0.0]
 distance_weights_quads_pose: [1., 0.05]
 distance_weights_quads_vel: [.1, 0.05]
 model_path: "/home/khaledwahba94/inria/agile-payload-transport/models/xml/2cfs_payload_tendons_empty.xml"
-dt: 0.02
+dt: 0.01
 dynamics: "mujocoquadspayload"
 visualize: true
