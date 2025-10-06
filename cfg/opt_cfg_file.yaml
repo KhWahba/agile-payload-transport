@@ -2,27 +2,23 @@ check_with_finite_diff: false
 soft_control_bounds: false
 CALLBACKS: false
 use_finite_diff: false
-use_warmstart: true
+use_warmstart: false
 repair_init_guess: false
 control_bounds: true
 states_reg: false
-solver_id: 1
+solver_id: 0
 disturbance: 1e-5
-th_stop: 1e-2
+th_stop: 1e-1
 init_reg: 1e2
-th_acceptnegstep: .3
-noise_level: 1e-5
-max_iter: 2
+th_acceptnegstep: .2
+noise_level: 1e-6
+max_iter: 3
 debug_file_name: /tmp/debug_file.yaml
-# weight_goal: 100
-# collision_weight: 50
-weight_goal: 50
-collision_weight: 250
-smooth_traj: false
-max_steps: 204
-N: 50
-goal_tol: 0.1
-x_weightb: 500
+weight_goal: 100
+collision_weight: 200
+max_steps: 180
+N: 30
+goal_tol: 0.01
+x_weightb: 300
 fail_threshold: 20.0
-time_ref: 0.0
-time_weight: 0.0
+ 
