@@ -5,9 +5,8 @@ project(
   VERSION 0.1.0
   LANGUAGES CXX)
 
-set(MJ_ROOT "$ENV{HOME}/inria/phdv2025-khaled_wahba/src/deps/mujoco-3.3.3")
+  set(MJ_ROOT "$ENV{HOME}/inria/phdv2025-khaled_wahba/src/deps/mujoco-3.3.6")
 
-# find_package(pinocchio REQUIRED)
 find_package(Boost REQUIRED COMPONENTS program_options serialization
                                        stacktrace_basic)
 find_package(fcl REQUIRED)
@@ -31,8 +30,7 @@ add_library(
   ./src/robot_models_base.cpp
   ./src/motions.cpp
   ./src/mujoco_quadrotors_payload.cpp
-  ./src/mujoco_quadrotor.cpp
-  ${SOURCE_n56})
+  ./src/mujoco_quadrotor.cpp)
 
 add_library(dynobench::dynobench ALIAS dynobench)
 
