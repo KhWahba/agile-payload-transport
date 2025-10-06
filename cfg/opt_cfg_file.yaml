@@ -12,13 +12,13 @@ th_stop: 1e-1
 init_reg: 1e2
 th_acceptnegstep: .2
 noise_level: 1e-6
-max_iter: 3
+max_iter: 1
 debug_file_name: /tmp/debug_file.yaml
 weight_goal: 100
 collision_weight: 200
-max_steps: 180
-N: 30
-goal_tol: 0.01
+max_steps: 300
+N: 50
+goal_tol: 0.1
 x_weightb: 300
 fail_threshold: 20.0
  
