@@ -15,51 +15,80 @@ namespace fs = std::filesystem;
 
 using namespace dynobench;
 
-static inline void ensure_horizon(Trajectory &traj, std::size_t N)
+static inline void ensure_horizon(Trajectory& traj, std::size_t N,
+                                  std::size_t nx, std::size_t nu)
 {
-  if (traj.actions.size() == N && traj.states.size() == N + 1)
-    return;
+  // Truncate first
+  if (traj.actions.size() > N)   traj.actions.resize(N);
+  if (traj.states.size()  > N+1) traj.states.resize(N+1);
 
-  const std::size_t nx = traj.states.empty() ? 0 : traj.states.front().size();
-  const std::size_t nu = traj.actions.empty() ? 0 : traj.actions.front().size();
-
-  // truncate
-  if (traj.actions.size() > N)
-  {
-    traj.actions.resize(N);
-    traj.states.resize(N + 1);
-    return;
+  // Pad actions to N
+  while (traj.actions.size() < N) {
+    Eigen::VectorXd u = traj.actions.empty()
+                        ? Eigen::VectorXd::Zero(nu)
+                        : Eigen::VectorXd(traj.actions.back()); // force a plain copy
+    if (u.size() != (Eigen::Index)nu) u.setZero(nu); // safety
+    traj.actions.push_back(u);
   }
-  // pad
-  Eigen::VectorXd a_last = traj.actions.empty() ? Eigen::VectorXd::Zero(nu) : traj.actions.back();
-  Eigen::VectorXd x_last = traj.states.empty() ? Eigen::VectorXd::Zero(nx) : traj.states.back();
 
-  if (traj.actions.empty())
-    traj.actions.assign(N, a_last);
-  else
-    traj.actions.resize(N, a_last);
-
-  if (traj.states.size() < N + 1)
-    traj.states.resize(N + 1, x_last);
-  if (traj.states.size() > N + 1)
-    traj.states.resize(N + 1);
+  // Pad states to N+1
+  while (traj.states.size() < N+1) {
+    Eigen::VectorXd x = traj.states.empty()
+                        ? Eigen::VectorXd::Zero(nx)
+                        : Eigen::VectorXd(traj.states.back()); // force a plain copy
+    if (x.size() != (Eigen::Index)nx) x.setZero(nx); // safety
+    traj.states.push_back(x);
+  }
 }
 
-static inline Trajectory shift_and_pad(const Trajectory &solved_window, std::size_t N)
+static inline Trajectory shift_and_pad(const Trajectory &solved_window,
+                                       std::size_t N,
+                                       std::size_t nx,
+                                       std::size_t nu)
 {
   Trajectory warm;
-  if (solved_window.actions.empty() || solved_window.states.size() < 2)
-  {
-    warm = solved_window;
-    ensure_horizon(warm, N);
+
+  // If window is empty, just pad
+  if (solved_window.actions.empty() || solved_window.states.size() < 2) {
+    warm = solved_window; // copy whatever there is
+    ensure_horizon(warm, N, nx, nu);
     return warm;
   }
-  // drop first knot
-  warm.actions.assign(solved_window.actions.begin() + 1, solved_window.actions.end());
-  warm.states.assign(solved_window.states.begin() + 1, solved_window.states.end());
-  // pad back to N/N+1
-  ensure_horizon(warm, N);
+
+  // Drop the first knot and copy the rest (deep copies)
+  warm.actions.reserve(N);
+  for (std::size_t i = 1; i < solved_window.actions.size(); ++i) {
+    Eigen::VectorXd u = solved_window.actions[i];
+    warm.actions.push_back(u);
+  }
+
+  warm.states.reserve(N + 1);
+  for (std::size_t i = 1; i < solved_window.states.size(); ++i) {
+    Eigen::VectorXd x = solved_window.states[i];
+    warm.states.push_back(x);
+  }
+
+  // Pad to full horizon
+  ensure_horizon(warm, N, nx, nu);
   return warm;
+}
+
+static inline Trajectory slice_window(const Trajectory& traj,
+                                      std::size_t offset, std::size_t N)
+{
+  Trajectory w;
+
+  if (offset < traj.actions.size()) {
+    auto a0 = traj.actions.begin() + offset;
+    auto a1 = (offset + N <= traj.actions.size()) ? a0 + N : traj.actions.end();
+    w.actions.assign(a0, a1); // copies into plain Eigen::VectorXd
+  }
+  if (offset < traj.states.size()) {
+    auto s0 = traj.states.begin() + offset;
+    auto s1 = (offset + N + 1 <= traj.states.size()) ? s0 + (N + 1) : traj.states.end();
+    w.states.assign(s0, s1);
+  }
+  return w;
 }
 
 // Append one applied (x1, u0) to the stitched trajectory
@@ -74,13 +103,13 @@ static inline void append_step(Trajectory &stitched,
 int main(int argc, char **argv)
 {
   // --- CLI ---
-  std::string env_file, init_file, dynobench_base, results_path, cfg_file;
+  std::string env_file, init_file, ref_file, dynobench_base, results_path, cfg_file;
   bool do_optimize = false;
   bool do_visualize = false;
   bool view_init = false;
 
   po::options_description desc("main_mujoco_opt_simulate options");
-  desc.add_options()("help,h", "Show help")("env_file", po::value<std::string>(&env_file), "Environment YAML")("init_file", po::value<std::string>(&init_file)->default_value(""), "Initial guess YAML")("results_path", po::value<std::string>(&results_path)->default_value("../result_opt.yaml"), "Path to save optimized solution YAML (written only if -o succeeds)")("dynobench_base", po::value<std::string>(&dynobench_base), "DynoBench base directory (contains models/)")("cfg_file", po::value<std::string>(&cfg_file)->default_value(""), "optimization parameters, see optimization/options.hpp")("visualize,v", po::bool_switch(&do_visualize)->default_value(false), "Save videos; does not require -o")("view_init,i", po::bool_switch(&view_init)->default_value(false), "view the initial guess, does not require -o")("views", po::value<std::vector<std::string>>()->multitoken()->default_value(std::vector<std::string>{"auto"}, "auto"), "Views: 'auto' or list of side top front diag")("repeats", po::value<int>()->default_value(2), "Number of repeats inside each video (default 2)")("video_prefix", po::value<std::string>()->default_value(""), "Optional video base; outputs base_<view>.mp4");
+  desc.add_options()("help,h", "Show help")("env_file", po::value<std::string>(&env_file), "Environment YAML")("init_file", po::value<std::string>(&init_file)->default_value(""), "Initial guess YAML")("ref_file", po::value<std::string>(&ref_file)->default_value(""), "Reference trajectory YAML")("results_path", po::value<std::string>(&results_path)->default_value("../result_opt.yaml"), "Path to save optimized solution YAML (written only if -o succeeds)")("dynobench_base", po::value<std::string>(&dynobench_base), "DynoBench base directory (contains models/)")("cfg_file", po::value<std::string>(&cfg_file)->default_value(""), "optimization parameters, see optimization/options.hpp")("visualize,v", po::bool_switch(&do_visualize)->default_value(false), "Save videos; does not require -o")("view_init,i", po::bool_switch(&view_init)->default_value(false), "view the initial guess, does not require -o")("views", po::value<std::vector<std::string>>()->multitoken()->default_value(std::vector<std::string>{"auto"}, "auto"), "Views: 'auto' or list of side top front diag")("repeats", po::value<int>()->default_value(2), "Number of repeats inside each video (default 2)")("video_prefix", po::value<std::string>()->default_value(""), "Optional video base; outputs base_<view>.mp4");
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);
@@ -141,17 +170,21 @@ int main(int argc, char **argv)
   }
 
   // initilize guess and solution trajectories
-  Trajectory init_guess, warm_start;
+  Trajectory init_guess, warm_start, ref_traj;
   if (!init_file.empty())
   {
     init_guess.read_from_yaml(init_file.c_str());
     warm_start.read_from_yaml(init_file.c_str());
-    ensure_horizon(warm_start, N);
   }
   else
   {
     std::cout << "No init_file specified.\n";
     warm_start.num_time_steps = N;
+    
+  }
+  if (!ref_file.empty())
+  {
+    ref_traj.read_from_yaml(ref_file.c_str());
   }
 
   Trajectory sol, sol_broken, sol_window;
@@ -182,7 +215,7 @@ int main(int argc, char **argv)
 
   Eigen::VectorXd x_init = problem.start;
   Eigen::VectorXd x;
-
+  double noise_level = 2e-3;
   double fail_threshold = 1e6;
   if (opt_file["fail_threshold"])
   {
@@ -194,28 +227,41 @@ int main(int argc, char **argv)
     goal_tol = opt_file["goal_tol"].as<double>();
   }
 
+  // known sizes from the robot model
+  const std::size_t nx = static_cast<std::size_t>(robot->nx);
+  const std::size_t nu = static_cast<std::size_t>(robot->nu);
   for (int k = 0; k < max_steps; ++k)
   {
     problem.start = x_init;
     auto t_start = std::chrono::high_resolution_clock::now();
-    execute_nmpc_mujoco(problem, warm_start, sol_window, sol_broken, cfg_file);
+    execute_nmpc_mujoco(problem, warm_start, ref_traj, sol_window, sol_broken, cfg_file);
     auto t_end = std::chrono::high_resolution_clock::now();
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
     std::cout << "execute_nmpc_mujoco took " << duration_ms << " ms\n";
     Eigen::VectorXd x = x_init;
-    Eigen::VectorXd u = sol_window.actions.front();
+    Eigen::VectorXd u = sol_broken.actions.front();
     Eigen::VectorXd xnext(robot->nx);
+    u += noise_level * Eigen::VectorXd::Random(nu);
     robot->step(xnext, x.head(robot->nx), u.head(robot->nu), robot->ref_dt);
     sol.states.push_back(xnext);
     sol.actions.push_back(u);
-    if (!init_file.empty()) {
-      warm_start = shift_and_pad(init_guess, N);
-    } else { 
-      warm_start = shift_and_pad(sol_window, N);
+    if (!ref_file.empty()) {
+      const std::size_t start_idx =
+      std::min<std::size_t>(k, init_guess.states.size() ? init_guess.states.size()-1 : 0);
+      ref_traj = slice_window(init_guess, start_idx, N);
+      ensure_horizon(ref_traj, N, nx, nu);
     }
-    ensure_horizon(warm_start, N);
+    if (!init_file.empty()) {
+      const std::size_t start_idx =
+      std::min<std::size_t>(k, init_guess.states.size() ? init_guess.states.size()-1 : 0);
+      warm_start = slice_window(init_guess, start_idx, N);
+      ensure_horizon(warm_start, N, nx, nu);
+    } else {
+      warm_start = shift_and_pad(sol_broken, N, nx, nu);
+      ensure_horizon(warm_start, N, nx, nu);
+    }
     x_init = xnext;
-    if (robot->distance(sol.states.back(), problem.goal) < goal_tol)
+    if (robot->distance(sol.states.back(), problem.goal) <= goal_tol)
     {
       std::cout << "Goal reached at step " << k << "\n";
       break;
@@ -230,7 +276,7 @@ int main(int argc, char **argv)
     {
       std::cout << "Goal distance: " << robot->distance(sol.states.back(), problem.goal) << std::endl;
     }
-    std::cout << "Step " << k << " done. Current position: " << xnext.transpose() << std::endl;
+    // std::cout << "Step " << k << " done. Current position: " << xnext.transpose() << std::endl;
   }
   if (max_steps < 2)
     sol = sol_window; // if only one step, show ghost of init

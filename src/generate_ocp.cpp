@@ -38,7 +38,7 @@ void Generate_params::print(std::ostream &out) const {
 
 ptr<crocoddyl::ShootingProblem>
 generate_problem(const Generate_params &gen_args,
-                 const Options_trajopt &options_trajopt) {
+                 const Options_trajopt &options_trajopt, dynobench::Trajectory &ref_traj) {
 
   // std::cout << "**\nGENERATING PROBLEM\n**\nArgs:\n" << std::endl;
   std::cout << "\nGENERATING PROBLEM" << std::endl;
@@ -69,10 +69,6 @@ generate_problem(const Generate_params &gen_args,
   size_t nu = dyn->nu;
   size_t nx = dyn->nx;
 
-  ptr<Cost> control_feature =
-      mk<Control_cost>(nx, nu, nu, dyn->u_weight, dyn->u_ref);
-
-
   bool use_hard_bounds = options_trajopt.control_bounds;
 
   if (options_trajopt.soft_control_bounds) {
@@ -83,8 +79,27 @@ generate_problem(const Generate_params &gen_args,
 
     std::vector<ptr<Cost>> feats_run;
 
-    feats_run.push_back(control_feature);
+    
+    Vxd control_ref = Vxd::Zero(nu);
+    if (gen_args.track_reference) {
+      if (t < ref_traj.actions.size()) {
+        Vxd control_weights = Vxd::Ones(nu);
+        control_ref = ref_traj.actions.at(t);
+        ptr<Cost> control_feature =
+        mk<Control_cost>(nx, nu, nu, control_weights, control_ref);
+        feats_run.push_back(control_feature);
+      }
 
+      // std::cout << "Adding tracking cost to the reference trajectory!" << std::endl;
+      Vxd state_weights = Vxd::Zero(nx);
+      state_weights.segment<3>(7)  = 1500.0 * V3d::Ones();
+      state_weights.segment<3>(14) = 1500.0 * V3d::Ones();
+      Vxd state_ref     = Vxd::Zero(nx);
+      state_ref = ref_traj.states.at(t);
+      ptr<Cost> state_feature = mk<State_cost>(
+        nx, nu, nx, state_weights, state_ref);
+        feats_run.push_back(state_feature);
+    }
     // feats_run.push_back(mk<State_bounds>(nx, nu, nx, v, -v);
 
     if (gen_args.collisions && gen_args.model_robot->env) {

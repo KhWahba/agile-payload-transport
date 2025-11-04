@@ -143,10 +143,10 @@ void solve_for_fixed_penalty(
     std::vector<Eigen::VectorXd> &xs_out, std::vector<Eigen::VectorXd> &us_out,
     std::shared_ptr<dynobench::Model_robot> model_robot,
     const dynobench::Problem &problem, const std::string folder_tmptraj,
-    bool store_iterations, boost::shared_ptr<CallVerboseDyno> callback_dyno) {
+    bool store_iterations, boost::shared_ptr<CallVerboseDyno> callback_dyno, dynobench::Trajectory &ref_traj) {
   // generate problem
   ptr<crocoddyl::ShootingProblem> problem_croco =
-      generate_problem(gen_args, options_trajopt_local);
+      generate_problem(gen_args, options_trajopt_local, ref_traj);
 
   size_t nu = model_robot->nu;
 
@@ -190,13 +190,12 @@ void solve_for_fixed_penalty(
     }
     ddp.setCallbacks(cbs);
   }
-
   std::cout << "CROCO optimize " << AT << std::endl;
   crocoddyl::Timer timer;
   ddp.solve(xs, us, options_trajopt_local.max_iter, false,
             options_trajopt_local.init_reg);
-  std::cout << "time: " << timer.get_duration() << std::endl;
-
+  std::cout << std::fixed << std::setprecision(2) << "time: " << timer.get_duration() << " [ms], frequency: " << 1/(timer.get_duration()*1e-3) << " [Hz]" << std::endl;
+  
   if (store_iterations)
     callback_dyno->store();
   std::cout << "CROCO optimize -- DONE" << std::endl;
@@ -205,62 +204,25 @@ void solve_for_fixed_penalty(
   xs_out = ddp.get_xs();
   us_out = ddp.get_us();
 
-  // report after
-  std::string filename = folder_tmptraj + "opt_" + random_id + ".yaml";
-
-  for (auto &x : xs_out) {
-    model_robot->ensure(x);
-  }
-
-  // write_states_controls(xs_out, us_out, model_robot, problem, filename.c_str());
-  // report_problem(problem_croco, xs_out, us_out, "/tmp/dynoplan/report-1.yaml");
 };
 
 void __trajectory_optimization(
     const dynobench::Problem &t_problem,
     std::shared_ptr<dynobench::Model_robot> &model_robot,
-    const dynobench::Trajectory &init_guess,
+    const dynobench::Trajectory &init_guess, dynobench::Trajectory &ref_traj,
     const Options_trajopt &options_trajopt, dynobench::Trajectory &traj,
     Result_opti &opti_out) {
 
   dynobench::Problem problem = t_problem;
-
-  model_robot->ensure(problem.start); // precission issues with quaternions
-  model_robot->ensure(problem.goal);
-
   Options_trajopt options_trajopt_local = options_trajopt;
 
-  std::vector<SOLVER> solvers{SOLVER::traj_opt};
-
-  CHECK(__in_if(solvers,
-                [&](const SOLVER &s) {
-                  return s ==
-                         static_cast<SOLVER>(options_trajopt_local.solver_id);
-                }),
-        "solver_id not in solvers");
-
-  const bool modify_to_match_goal_start = false;
   const bool store_iterations = false;
   const std::string folder_tmptraj = "/tmp/dynoplan/";
 
-  // std::cout
-  //     << "WARNING: "
-  //     << "Cleaning data in opti_out at beginning of __trajectory_optimization"
-  //     << std::endl;
   opti_out.data.clear();
 
   auto callback_dyno = mk<CallVerboseDyno>();
 
-  {
-    dynobench::Trajectory __init_guess = init_guess;
-    __init_guess.start = problem.start;
-    __init_guess.goal = problem.goal;
-    std::cout << "checking traj input of __trajectory_optimization "
-              << std::endl;
-    __init_guess.check(model_robot, false);
-    std::cout << "checking traj input of __trajectory_optimization -- DONE "
-              << std::endl;
-  }
 
   size_t ddp_iterations = 0;
   double ddp_time = 0;
@@ -282,32 +244,10 @@ void __trajectory_optimization(
 
   SOLVER solver = static_cast<SOLVER>(options_trajopt_local.solver_id);
 
-  if (modify_to_match_goal_start) {
-    std::cout << "WARNING: " << "i modify last state to match goal"
-              << std::endl;
-    xs_init.back() = goal;
-    xs_init.front() = start;
-  }
-
   bool success = false;
   std::vector<Vxd> xs_out, us_out;
 
-  create_dir_if_necessary(options_trajopt_local.debug_file_name.c_str());
-  std::ofstream debug_file_yaml(options_trajopt_local.debug_file_name);
-  {
-    debug_file_yaml << "robotType: " << problem.robotType << std::endl;
-    debug_file_yaml << "N: " << N << std::endl;
-    debug_file_yaml << "start: " << start.format(FMT) << std::endl;
-    debug_file_yaml << "goal: " << goal.format(FMT) << std::endl;
-    debug_file_yaml << "xs0: " << std::endl;
-    for (auto &x : xs_init)
-      debug_file_yaml << "  - " << x.format(FMT) << std::endl;
 
-    debug_file_yaml << "us0: " << std::endl;
-    for (auto &x : us_init)
-      debug_file_yaml << "  - " << x.format(FMT) << std::endl;
-  }
-  
   if (solver == SOLVER::traj_opt) {
 
     std::vector<Vxd> regs;
@@ -328,8 +268,8 @@ void __trajectory_optimization(
         .states = {xs_init.begin(), xs_init.end() - 1},
         .states_weights = regs,
         .actions = us_init,
-        .collisions = options_trajopt_local.collision_weight > 1e-3
-
+        .collisions = options_trajopt_local.collision_weight > 1e-3,
+        .track_reference = options_trajopt_local.track_reference
     };
 
     // std::cout << "gen problem " << STR_(AT) << std::endl;
@@ -338,24 +278,16 @@ void __trajectory_optimization(
 
     xs_init_p = xs_init;
     us_init_p = us_init;
-    const size_t penalty_iterations = 1;
-    for (size_t i = 0; i < penalty_iterations; i++) {
-      // std::cout << "PENALTY iteration " << i << std::endl;
-      gen_args.penalty = std::pow(10., double(i) / 2.);
+    gen_args.penalty = 1.0;
 
-      if (i > 0) {
-        options_trajopt_local.noise_level = 0;
-      }
+    solve_for_fixed_penalty(gen_args, options_trajopt_local, xs_init, us_init,
+                            options_trajopt_local.check_with_finite_diff, N,
+                            name, ddp_iterations, ddp_time, _xs_out, _us_out,
+                            model_robot, problem, folder_tmptraj,
+                            store_iterations, callback_dyno, ref_traj);
 
-      solve_for_fixed_penalty(gen_args, options_trajopt_local, xs_init, us_init,
-                              options_trajopt_local.check_with_finite_diff, N,
-                              name, ddp_iterations, ddp_time, _xs_out, _us_out,
-                              model_robot, problem, folder_tmptraj,
-                              store_iterations, callback_dyno);
-
-      xs_init_p = _xs_out;
-      us_init_p = _us_out;
-    }
+    xs_init_p = _xs_out;
+    us_init_p = _us_out;
 
     Trajectory traj;
     traj.start = start;
@@ -370,9 +302,9 @@ void __trajectory_optimization(
       traj.actions.at(i) = _us_out.at(i).head(model_robot->nu);
 
     // std::cout << "CHECK traj with non uniform time " << std::endl;
-    traj.check(model_robot, false);
-    traj.update_feasibility(dynobench::Feasibility_thresholds(), false);
-    std::cout << "CHECK traj with non uniform time -- DONE " << std::endl;
+    // traj.check(model_robot, false);
+    // traj.update_feasibility(dynobench::Feasibility_thresholds(), false);
+    // std::cout << "CHECK traj with non uniform time -- DONE " << std::endl;
 
     success = traj.feasible;
 
@@ -430,17 +362,16 @@ void __trajectory_optimization(
 }
 
 void trajectory_optimization(const dynobench::Problem &problem,
-                             const Trajectory &init_guess,
+                             const Trajectory &init_guess, Trajectory &ref_traj,
                              const Options_trajopt &options_trajopt,
                              Trajectory &traj, Result_opti &opti_out) {
 
   double time_ddp_total = 0;
   Stopwatch watch;
   Options_trajopt options_trajopt_local = options_trajopt;
-  // std::string _base_path = "../../models/";
 
   std::shared_ptr<dynobench::Model_robot> model_robot;
-    // robotType.empty()) {
+
   model_robot = dynobench::robot_factory(
       (problem.models_base_path + problem.robotType + ".yaml").c_str(),
       problem.p_lb, problem.p_ub);
@@ -452,10 +383,6 @@ void trajectory_optimization(const dynobench::Problem &problem,
   size_t _nu = model_robot->nu;
 
   Trajectory tmp_init_guess(init_guess), tmp_solution;
-
-
-  for (auto &s : tmp_init_guess.states)
-    model_robot->ensure(s);
 
   // CSTR_(model_robot->ref_dt);
 
@@ -497,42 +424,16 @@ void trajectory_optimization(const dynobench::Problem &problem,
                   [&](auto &x) { x = model_robot->u_0; });
   }
 
-
-  // check the init guess trajectory
-
-  std::cout << "Report on the init guess " << std::endl;
-  WARN_WITH_INFO("should I copy the first state in the init guess? -- now yes");
   tmp_init_guess.start = problem.start;
-  // tmp_init_guess.check(model_robot, true);
-  std::cout << "Report on the init guess -- DONE " << std::endl;
+  __trajectory_optimization(problem, model_robot, tmp_init_guess, ref_traj,
+                            options_trajopt_local, traj, opti_out);
+  time_ddp_total += std::stod(opti_out.data.at("ddp_time"));
+  CSTR_(time_ddp_total);
 
-  switch (static_cast<SOLVER>(options_trajopt.solver_id)) {
-
-    case SOLVER::traj_opt: {
-      // SOLVER 1
-      options_trajopt_local.debug_file_name =
-          "/tmp/dynoplan/debug_file_trajopt.yaml";
-
-      __trajectory_optimization(problem, model_robot, tmp_init_guess,
-                                options_trajopt_local, traj, opti_out);
-      time_ddp_total += std::stod(opti_out.data.at("ddp_time"));
-      CSTR_(time_ddp_total);
-
-      if (!opti_out.success) {
-        std::cout << "warning" << " " << "infeasible" << std::endl;
-      }
-
-      DYNO_CHECK_EQ(traj.feasible, opti_out.feasible, AT);
-    } break;
-
-    default: {
-      __trajectory_optimization(problem, model_robot, tmp_init_guess,
-                                options_trajopt_local, traj, opti_out);
-      time_ddp_total += std::stod(opti_out.data.at("ddp_time"));
-      CSTR_(time_ddp_total);
-      DYNO_CHECK_EQ(traj.feasible, opti_out.feasible, AT);
-    }
+  if (!opti_out.success) {
+    std::cout << "warning" << " " << "infeasible" << std::endl;
   }
+  // DYNO_CHECK_EQ(traj.feasible, opti_out.feasible, AT);
 
   // convert the format if necessary
 
