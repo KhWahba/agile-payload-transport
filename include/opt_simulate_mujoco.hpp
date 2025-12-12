@@ -20,5 +20,6 @@ void execute_simMujoco(std::string &env_file,
 
 void execute_nmpc_mujoco(dynobench::Problem &problem,
                        dynobench::Trajectory &init_guess,
+                          dynobench::Trajectory &ref_traj,
                        dynobench::Trajectory &sol,
                         dynobench::Trajectory &sol_broken, std::string cfg_file);

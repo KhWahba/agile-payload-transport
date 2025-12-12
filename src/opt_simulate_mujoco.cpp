@@ -401,7 +401,7 @@ bool execute_optMujoco(std::string &env_file,
     init_guess.read_from_yaml(init_file.c_str());
 
     std::cout << "optimizing trajectory..." << std::endl;
-    trajectory_optimization(problem, init_guess, options_trajopt, sol, result);
+    trajectory_optimization(problem, init_guess, init_guess, options_trajopt, sol, result);
     sol_broken.states = result.xs_out;
     sol_broken.actions = result.us_out;
 
@@ -419,6 +419,7 @@ bool execute_optMujoco(std::string &env_file,
 
 void execute_nmpc_mujoco(dynobench::Problem &problem,
                        dynobench::Trajectory &init_guess,
+                       dynobench::Trajectory &ref_traj,
                        dynobench::Trajectory &sol,
                         dynobench::Trajectory &sol_broken, std::string cfg_file) 
 {
@@ -433,9 +434,11 @@ void execute_nmpc_mujoco(dynobench::Problem &problem,
     } else { 
         options_trajopt.read_from_yaml(cfg_file.c_str());
     }
-
+    if (ref_traj.states.size() == 0) {
+        options_trajopt.track_reference = false;
+    }
     std::cout << "optimizing trajectory..." << std::endl;
-    trajectory_optimization(problem, init_guess, options_trajopt, sol, result);
+    trajectory_optimization(problem, init_guess, ref_traj, options_trajopt, sol, result);
     sol_broken.states = result.xs_out;
     sol_broken.actions = result.us_out;
 

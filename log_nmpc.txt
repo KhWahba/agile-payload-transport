@@ -1,0 +1,8 @@
+Loading yaml file: /home/khaledwahba94/agile-payload-transport/envs/mujoco/nmpc/obs1/env.yaml
+26
+Loading file: /home/khaledwahba94/agile-payload-transport/envs/mujoco/nmpc/obs1/result_dbcbs_opt.yaml
+Loading file: /home/khaledwahba94/agile-payload-transport/envs/mujoco/nmpc/obs1/result_dbcbs_opt.yaml
+Loading file: ../envs/mujoco/nmpc/obs1/result_dbcbs_opt.yaml
+loading file: /home/khaledwahba94/agile-payload-transport/models/mujocoquadspayload_obs1.yaml
+Robot name mujocoquadspayload
+loading file: ../cfg/opt_cfg_file.yaml

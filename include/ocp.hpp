@@ -48,12 +48,12 @@ struct Result_opti {
 void __trajectory_optimization(
     const dynobench::Problem &problem,
     std::shared_ptr<dynobench::Model_robot> &model_robot,
-    const dynobench::Trajectory &init_guess,
+    const dynobench::Trajectory &init_guess, dynobench::Trajectory &ref_traj,
     const Options_trajopt &options_trajopt, dynobench::Trajectory &traj,
     Result_opti &opti_out);
 
 void trajectory_optimization(const dynobench::Problem &problem,
-                             const dynobench::Trajectory &init_guess,
+                             const dynobench::Trajectory &init_guess, dynobench::Trajectory &ref_traj,
                              const Options_trajopt &opti_parms,
                              dynobench::Trajectory &traj,
                              Result_opti &opti_out);

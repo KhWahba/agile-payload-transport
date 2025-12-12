@@ -19,10 +19,9 @@ struct Options_trajopt {
   bool use_finite_diff = false;
   bool use_warmstart = true;
   bool rollout_warmstart = false;
-  bool repair_init_guess = true;
   bool control_bounds = true;
   bool states_reg = false;
-  int solver_id = 1;
+  int solver_id = 0;
   double disturbance = 1e-5;
   int num_threads = 1;
 
@@ -51,6 +50,8 @@ struct Options_trajopt {
   bool interp = false;
   bool welf_format = false;
   bool linear_search = false;
+  bool track_reference = false;
+  bool track_goal = false;
   std::string name = "";
 
   void add_options(po::options_description &desc);
@@ -70,22 +71,6 @@ void PrintVariableMap(const boost::program_options::variables_map &vm,
 // TODO: check which methods are deprecated!!
 enum class SOLVER {
   traj_opt = 0,
-  traj_opt_free_time = 1,
-  traj_opt_smooth_then_free_time = 2,
-  mpc = 3,
-  mpcc = 4,
-  mpcc2 = 5,
-  traj_opt_mpcc = 6,
-  mpc_nobound_mpcc = 7,
-  mpcc_linear = 8,
-  time_search_traj_opt = 9,
-  mpc_adaptative = 10,
-  traj_opt_free_time_proxi = 11,
-  traj_opt_no_bound_bound = 12,
-  traj_opt_free_time_proxi_linear = 13,
-  traj_opt_free_time_linear = 14,
-  first_fixed_then_free_time = 15,
-  none = 16
 };
 
 } // namespace dynoplan
