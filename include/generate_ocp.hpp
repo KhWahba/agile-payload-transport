@@ -17,12 +17,10 @@ to_am_base(boost::shared_ptr<Derived> am) {
 };
 
 struct Generate_params {
-  bool free_time = false;
-  bool free_time_linear = false;
   std::string name;
   size_t N;
-  Eigen::VectorXd goal;
   Eigen::VectorXd start;
+  Eigen::VectorXd goal;
   std::shared_ptr<dynobench::Model_robot> model_robot;
   std::vector<Eigen::VectorXd> states = {};
   std::vector<Eigen::VectorXd> states_weights = {};
@@ -35,6 +33,9 @@ struct Generate_params {
   bool collisions = true;
   double penalty = 1; // penalty for the constraints
   bool track_reference = false;
+  bool states_reg = false;
+  bool track_goal = false;
+  
   void print(std::ostream &out) const;
 };
 

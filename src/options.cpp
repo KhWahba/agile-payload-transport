@@ -41,6 +41,8 @@ void Options_trajopt::add_options(po::options_description &desc) {
   set_from_boostop(desc, VAR_WITH_NAME(tsearch_num_check));
   set_from_boostop(desc, VAR_WITH_NAME(welf_format));
   set_from_boostop(desc, VAR_WITH_NAME(linear_search));
+  set_from_boostop(desc, VAR_WITH_NAME(track_reference));
+  set_from_boostop(desc, VAR_WITH_NAME(track_goal));
 }
 
 void Options_trajopt::read_from_yaml(const char *file) {
@@ -87,6 +89,7 @@ void Options_trajopt::__read_from_node(const YAML::Node &node) {
   set_from_yaml(node, VAR_WITH_NAME(tsearch_num_check));
   set_from_yaml(node, VAR_WITH_NAME(linear_search));
   set_from_yaml(node, VAR_WITH_NAME(track_reference));
+  set_from_yaml(node, VAR_WITH_NAME(track_goal));
 }
 
 void Options_trajopt::read_from_yaml(YAML::Node &node) {
@@ -120,7 +123,6 @@ void Options_trajopt::print(std::ostream &out, const std::string &be,
   out << be << STR(solver_id, af) << std::endl;
   out << be << STR(use_finite_diff, af) << std::endl;
   out << be << STR(use_warmstart, af) << std::endl;
-  out << be << STR(repair_init_guess, af) << std::endl;
   out << be << STR(control_bounds, af) << std::endl;
   out << be << STR(th_stop, af) << std::endl;
   out << be << STR(init_reg, af) << std::endl;

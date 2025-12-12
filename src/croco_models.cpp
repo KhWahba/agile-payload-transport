@@ -1277,9 +1277,9 @@ State_cost_model::State_cost_model(
   Jx1_w.setZero();
   __r.setZero();
 
-  CSTR_(nr);
-  CSTR_(nu);
-  CSTR_(nx);
+  // CSTR_(nr);
+  // CSTR_(nu);
+  // CSTR_(nx);
 
   name = "state_cost_model";
 }

@@ -216,7 +216,7 @@ void __trajectory_optimization(
   dynobench::Problem problem = t_problem;
   Options_trajopt options_trajopt_local = options_trajopt;
 
-  const bool store_iterations = false;
+  const bool store_iterations = true;
   const std::string folder_tmptraj = "/tmp/dynoplan/";
 
   opti_out.data.clear();
@@ -250,26 +250,25 @@ void __trajectory_optimization(
 
   if (solver == SOLVER::traj_opt) {
 
-    std::vector<Vxd> regs;
-    if (options_trajopt_local.states_reg && solver == SOLVER::traj_opt) {
-      double state_reg_weight = 100.;
-      regs = std::vector<Vxd>(xs_init.size() - 1,
-                              state_reg_weight * Vxd::Ones(_nx));
-    }
+    // std::vector<Vxd> regs;
+    // if (options_trajopt_local.states_reg && solver == SOLVER::traj_opt) {
+    //   double state_reg_weight = 100.;
+    //   regs = std::vector<Vxd>(xs_init.size() - 1,
+    //                           state_reg_weight * Vxd::Ones(_nx));
+    // }
 
     Generate_params gen_args{
-        .free_time = false,
-        .free_time_linear = false,
         .name = name,
         .N = N,
-        .goal = goal,
         .start = start,
+        .goal = goal,
         .model_robot = model_robot,
         .states = {xs_init.begin(), xs_init.end() - 1},
-        .states_weights = regs,
         .actions = us_init,
         .collisions = options_trajopt_local.collision_weight > 1e-3,
-        .track_reference = options_trajopt_local.track_reference
+        .track_reference = options_trajopt_local.track_reference,
+        .states_reg = options_trajopt_local.states_reg,
+        .track_goal = options_trajopt_local.track_goal
     };
 
     // std::cout << "gen problem " << STR_(AT) << std::endl;
@@ -323,7 +322,7 @@ void __trajectory_optimization(
   opti_out.cost = us_out.size() * dt;
   traj.states = xs_out;
   traj.actions = us_out;
-
+  traj.cost = us_out.size() * dt;
 
   traj.start = problem.start;
   traj.goal = problem.goal;
@@ -430,9 +429,9 @@ void trajectory_optimization(const dynobench::Problem &problem,
   time_ddp_total += std::stod(opti_out.data.at("ddp_time"));
   CSTR_(time_ddp_total);
 
-  if (!opti_out.success) {
-    std::cout << "warning" << " " << "infeasible" << std::endl;
-  }
+  // if (!opti_out.success) {
+    // std::cout << "warning" << " " << "infeasible" << std::endl;
+  // }
   // DYNO_CHECK_EQ(traj.feasible, opti_out.feasible, AT);
 
   // convert the format if necessary

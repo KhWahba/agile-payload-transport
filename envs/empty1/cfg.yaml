@@ -1,0 +1,12 @@
+init_file: "../envs/empty1/result_dbcbs_opt.yaml"
+# init_file: ""
+ref_file: "../envs/empty1/result_dbcbs_opt.yaml"
+env_file: "../envs/empty1/env.yaml"
+dynobench_base: ".."
+results_path: "../envs/empty1/nmpc_result.yaml"
+repeats: 1
+views: ["side"]
+video_prefix: "../media/empty1/empty1"
+view_ref: true
+optimize: true
+visualize: true
