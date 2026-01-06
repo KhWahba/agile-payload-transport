@@ -1,8 +1,454 @@
-Loading yaml file: /home/khaledwahba94/agile-payload-transport/envs/mujoco/nmpc/obs1/env.yaml
+Loading yaml file: ../envs/hover1/env.yaml
 26
-Loading file: /home/khaledwahba94/agile-payload-transport/envs/mujoco/nmpc/obs1/result_dbcbs_opt.yaml
-Loading file: /home/khaledwahba94/agile-payload-transport/envs/mujoco/nmpc/obs1/result_dbcbs_opt.yaml
-Loading file: ../envs/mujoco/nmpc/obs1/result_dbcbs_opt.yaml
-loading file: /home/khaledwahba94/agile-payload-transport/models/mujocoquadspayload_obs1.yaml
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
 Robot name mujocoquadspayload
-loading file: ../cfg/opt_cfg_file.yaml
+No init_file specified.
+No ref_file specified.
+=== NMPC Step 0 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50,50,50,0,0,0,0,50,50,50,50,50,50,50,50,50,50,0,0,0,50,50,50,50,50,50]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  1.411e+03  0.000e+00  3.225e+05  6.588e+05  1.000e-03  1.000e-03  1.0000  9.810e-02  0.000e+00  0.000e+00  3.225e+05  3.275e+05  0.000e+00  0.000e+00
+   1  5.294e+01  0.000e+00  1.358e+03  2.715e+03  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  1.358e+03  1.358e+03  0.000e+00  0.000e+00
+time: 23.87 [ms], frequency: 41.90 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 23.87
+Goal distance: 0.01
+=== NMPC Step 1 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.298e+01  0.000e+00  3.313e+05  6.627e+05  1.000e-03  1.000e-03  1.0000  1.161e-01  0.000e+00  0.000e+00  3.313e+05  3.314e+05  0.000e+00  0.000e+00
+   1  5.283e+01  0.000e+00  1.508e-01  3.016e-01  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  1.508e-01  1.508e-01  0.000e+00  0.000e+00
+time: 27.70 [ms], frequency: 36.10 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 27.71
+Goal reached at step 1 with distance 0.00
+=== NMPC Step 2 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  3.755e+00  0.000e+00  1.379e+02  2.985e+02  1.000e-03  1.000e-03  1.0000  1.170e-01  0.000e+00  0.000e+00  1.379e+02  1.381e+02  0.000e+00  0.000e+00
+   1  3.698e+00  0.000e+00  5.748e-02  1.150e-01  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  5.748e-02  5.747e-02  0.000e+00  0.000e+00
+time: 28.33 [ms], frequency: 35.29 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 28.34
+=== NMPC Step 3 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  1.849e+00  0.000e+00  9.723e+01  2.174e+02  1.000e-03  1.000e-03  1.0000  1.119e-01  0.000e+00  0.000e+00  9.723e+01  9.736e+01  0.000e+00  0.000e+00
+   1  1.842e+00  0.000e+00  7.622e-03  1.524e-02  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  7.622e-03  7.618e-03  0.000e+00  0.000e+00
+time: 27.99 [ms], frequency: 35.73 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 27.99
+=== NMPC Step 4 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  8.517e-01  0.000e+00  7.310e+01  1.631e+02  1.000e-03  1.000e-03  1.0000  1.075e-01  0.000e+00  0.000e+00  7.310e+01  7.325e+01  0.000e+00  0.000e+00
+   1  8.510e-01  0.000e+00  7.076e-04  1.415e-03  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  7.076e-04  7.066e-04  0.000e+00  0.000e+00
+time: 26.88 [ms], frequency: 37.20 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 26.89
+=== NMPC Step 5 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  3.843e-01  0.000e+00  6.095e+01  1.327e+02  1.000e-03  1.000e-03  1.0000  1.041e-01  0.000e+00  0.000e+00  6.095e+01  6.111e+01  0.000e+00  0.000e+00
+   1  3.843e-01  0.000e+00  5.754e-05  1.151e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  5.754e-05  5.748e-05  0.000e+00  0.000e+00
+time: 27.74 [ms], frequency: 36.05 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 27.75
+=== NMPC Step 6 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  1.885e-01  0.000e+00  5.573e+01  1.175e+02  1.000e-03  1.000e-03  1.0000  1.017e-01  0.000e+00  0.000e+00  5.573e+01  5.588e+01  0.000e+00  0.000e+00
+   1  1.885e-01  0.000e+00  9.021e-05  1.804e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.021e-05  9.030e-05  0.000e+00  0.000e+00
+time: 27.96 [ms], frequency: 35.76 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 27.97
+=== NMPC Step 7 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  1.128e-01  0.000e+00  5.376e+01  1.105e+02  1.000e-03  1.000e-03  1.0000  1.001e-01  0.000e+00  0.000e+00  5.376e+01  5.389e+01  0.000e+00  0.000e+00
+   1  1.127e-01  0.000e+00  8.133e-05  1.627e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  8.133e-05  8.121e-05  0.000e+00  0.000e+00
+time: 26.61 [ms], frequency: 37.58 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 26.62
+=== NMPC Step 8 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  8.423e-02  0.000e+00  5.310e+01  1.074e+02  1.000e-03  1.000e-03  1.0000  9.916e-02  0.000e+00  0.000e+00  5.310e+01  5.323e+01  0.000e+00  0.000e+00
+   1  8.414e-02  0.000e+00  8.542e-05  1.708e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  8.542e-05  8.522e-05  0.000e+00  0.000e+00
+time: 26.89 [ms], frequency: 37.19 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 26.89
+=== NMPC Step 9 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  7.217e-02  0.000e+00  5.289e+01  1.060e+02  1.000e-03  1.000e-03  1.0000  9.861e-02  0.000e+00  0.000e+00  5.289e+01  5.300e+01  0.000e+00  0.000e+00
+   1  7.208e-02  0.000e+00  8.919e-05  1.784e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  8.919e-05  8.895e-05  0.000e+00  0.000e+00
+time: 26.90 [ms], frequency: 37.18 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 26.90
+=== NMPC Step 10 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  6.588e-02  0.000e+00  5.281e+01  1.052e+02  1.000e-03  1.000e-03  1.0000  9.829e-02  0.000e+00  0.000e+00  5.281e+01  5.292e+01  0.000e+00  0.000e+00
+   1  6.579e-02  0.000e+00  9.163e-05  1.833e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.163e-05  9.138e-05  0.000e+00  0.000e+00
+time: 27.86 [ms], frequency: 35.90 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 27.87
+=== NMPC Step 11 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  6.181e-02  0.000e+00  5.277e+01  1.048e+02  1.000e-03  1.000e-03  1.0000  9.811e-02  0.000e+00  0.000e+00  5.277e+01  5.289e+01  0.000e+00  0.000e+00
+   1  6.172e-02  0.000e+00  9.314e-05  1.863e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.314e-05  9.289e-05  0.000e+00  0.000e+00
+time: 30.14 [ms], frequency: 33.18 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 30.15
+=== NMPC Step 12 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.877e-02  0.000e+00  5.275e+01  1.046e+02  1.000e-03  1.000e-03  1.0000  9.801e-02  0.000e+00  0.000e+00  5.275e+01  5.286e+01  0.000e+00  0.000e+00
+   1  5.868e-02  0.000e+00  9.408e-05  1.882e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.408e-05  9.384e-05  0.000e+00  0.000e+00
+time: 29.37 [ms], frequency: 34.04 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 29.38
+=== NMPC Step 13 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.636e-02  0.000e+00  5.274e+01  1.044e+02  1.000e-03  1.000e-03  1.0000  9.797e-02  0.000e+00  0.000e+00  5.274e+01  5.285e+01  0.000e+00  0.000e+00
+   1  5.626e-02  0.000e+00  9.468e-05  1.894e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.468e-05  9.445e-05  0.000e+00  0.000e+00
+time: 28.93 [ms], frequency: 34.56 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 28.94
+=== NMPC Step 14 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.442e-02  0.000e+00  5.272e+01  1.043e+02  1.000e-03  1.000e-03  1.0000  9.795e-02  0.000e+00  0.000e+00  5.272e+01  5.283e+01  0.000e+00  0.000e+00
+   1  5.432e-02  0.000e+00  9.506e-05  1.901e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.506e-05  9.484e-05  0.000e+00  0.000e+00
+time: 30.98 [ms], frequency: 32.28 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 30.99
+=== NMPC Step 15 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.286e-02  0.000e+00  5.271e+01  1.043e+02  1.000e-03  1.000e-03  1.0000  9.795e-02  0.000e+00  0.000e+00  5.271e+01  5.282e+01  0.000e+00  0.000e+00
+   1  5.276e-02  0.000e+00  9.531e-05  1.906e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.531e-05  9.510e-05  0.000e+00  0.000e+00
+time: 31.10 [ms], frequency: 32.15 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 31.11
+=== NMPC Step 16 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.161e-02  0.000e+00  5.270e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.796e-02  0.000e+00  0.000e+00  5.270e+01  5.281e+01  0.000e+00  0.000e+00
+   1  5.152e-02  0.000e+00  9.548e-05  1.910e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.548e-05  9.528e-05  0.000e+00  0.000e+00
+time: 32.07 [ms], frequency: 31.18 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 32.08
+=== NMPC Step 17 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  5.063e-02  0.000e+00  5.269e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.798e-02  0.000e+00  0.000e+00  5.269e+01  5.280e+01  0.000e+00  0.000e+00
+   1  5.054e-02  0.000e+00  9.559e-05  1.912e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.559e-05  9.540e-05  0.000e+00  0.000e+00
+time: 31.21 [ms], frequency: 32.04 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 31.21
+=== NMPC Step 18 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.986e-02  0.000e+00  5.269e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.799e-02  0.000e+00  0.000e+00  5.269e+01  5.280e+01  0.000e+00  0.000e+00
+   1  4.976e-02  0.000e+00  9.567e-05  1.913e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.567e-05  9.548e-05  0.000e+00  0.000e+00
+time: 31.28 [ms], frequency: 31.97 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 31.30
+=== NMPC Step 19 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.925e-02  0.000e+00  5.268e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.801e-02  0.000e+00  0.000e+00  5.268e+01  5.279e+01  0.000e+00  0.000e+00
+   1  4.916e-02  0.000e+00  9.572e-05  1.914e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.572e-05  9.554e-05  0.000e+00  0.000e+00
+time: 36.00 [ms], frequency: 27.78 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 36.01
+=== NMPC Step 20 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.877e-02  0.000e+00  5.268e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.803e-02  0.000e+00  0.000e+00  5.268e+01  5.279e+01  0.000e+00  0.000e+00
+   1  4.868e-02  0.000e+00  9.576e-05  1.915e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.576e-05  9.559e-05  0.000e+00  0.000e+00
+time: 30.92 [ms], frequency: 32.33 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 30.94
+=== NMPC Step 21 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.839e-02  0.000e+00  5.268e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.805e-02  0.000e+00  0.000e+00  5.268e+01  5.279e+01  0.000e+00  0.000e+00
+   1  4.830e-02  0.000e+00  9.579e-05  1.916e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.579e-05  9.562e-05  0.000e+00  0.000e+00
+time: 31.26 [ms], frequency: 31.99 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 31.27
+=== NMPC Step 22 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.809e-02  0.000e+00  5.267e+01  1.042e+02  1.000e-03  1.000e-03  1.0000  9.806e-02  0.000e+00  0.000e+00  5.267e+01  5.278e+01  0.000e+00  0.000e+00
+   1  4.799e-02  0.000e+00  9.581e-05  1.916e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.581e-05  9.565e-05  0.000e+00  0.000e+00
+time: 29.37 [ms], frequency: 34.05 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 29.38
+=== NMPC Step 23 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.783e-02  0.000e+00  5.267e+01  1.043e+02  1.000e-03  1.000e-03  1.0000  9.808e-02  0.000e+00  0.000e+00  5.267e+01  5.278e+01  0.000e+00  0.000e+00
+   1  4.774e-02  0.000e+00  9.583e-05  1.917e-04  1.000e-04  1.000e-04  1.0000  0.000e+00  0.000e+00  0.000e+00  9.583e-05  9.567e-05  0.000e+00  0.000e+00
+time: 29.44 [ms], frequency: 33.97 [Hz]
+CROCO optimize -- DONE
+time_ddp_total: 29.45
+=== NMPC Step 24 ===
+optimizing trajectory...
+loading file: /home/khaledwahba94/inria/agile-payload-transport/models/mujocoquadspayload_empty1.yaml
+Robot name mujocoquadspayload
+
+GENERATING PROBLEM
+**
+
+track reference: 0
+goal_weight: [50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000,0.000000,0.000000,0.000000,50.000000,50.000000,50.000000,50.000000,50.000000,50.000000]
+solving with croco /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:172
+CROCO optimize /home/khaledwahba94/inria/agile-payload-transport/src/ocp.cpp:193
+iter    cost       merit      stop       grad       preg       dreg      step   ||ffeas||  ||gfeas||  ||hfeas||   dV-exp       dV      dPhi-exp     dPhi
+   0  4.762e-02  0.000e+00  5.267e+01  1.043e+02  1.000e-03  1.000e-03  1.0000  9.809e-02  0.000e+00  0.000e+00  5.267e+01  5.278e+01  0.000e+00  0.000e+00
