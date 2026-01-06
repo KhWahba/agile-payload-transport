@@ -216,7 +216,7 @@ void __trajectory_optimization(
   dynobench::Problem problem = t_problem;
   Options_trajopt options_trajopt_local = options_trajopt;
 
-  const bool store_iterations = true;
+  const bool store_iterations = false;
   const std::string folder_tmptraj = "/tmp/dynoplan/";
 
   opti_out.data.clear();
@@ -307,7 +307,7 @@ void __trajectory_optimization(
 
     success = traj.feasible;
 
-    CSTR_(success);
+    // CSTR_(success);
     xs_out = _xs_out;
     us_out = _us_out;
   }
@@ -381,8 +381,7 @@ void trajectory_optimization(const dynobench::Problem &problem,
   size_t _nx = model_robot->nx; // state
   size_t _nu = model_robot->nu;
 
-  Trajectory tmp_init_guess(init_guess), tmp_solution;
-
+  Trajectory tmp_init_guess(init_guess), tmp_ref_traj(ref_traj);
   // CSTR_(model_robot->ref_dt);
 
   if (!tmp_init_guess.states.size() && tmp_init_guess.num_time_steps == 0) {
@@ -398,9 +397,6 @@ void trajectory_optimization(const dynobench::Problem &problem,
 
     std::for_each(tmp_init_guess.states.begin(), tmp_init_guess.states.end(),
                   [&](auto &x) {
-                    if (options_trajopt_local.ref_x0)
-                      x = model_robot->get_x0(problem.start);
-                    else
                       x = problem.start;
                   });
 
@@ -451,7 +447,6 @@ void Result_opti::write_yaml(std::ostream &out) {
       out << "  " << k << ": " << v << std::endl;
     }
   }
-  // TODO: @QUIM @AKMARAL Clarify this!!!
   out << "result:" << std::endl;
   // out << "xs_out: " << std::endl;
   out << "  - states:" << std::endl;
