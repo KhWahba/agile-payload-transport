@@ -7,14 +7,14 @@ control_bounds: true
 states_reg: false
 disturbance: 0.0
 th_stop: .1
-init_reg: 1e-2
+init_reg: 1e-9
 th_acceptnegstep: .1
 noise_level: 0.0
-max_iter: 1
+max_iter: 2
 debug_file_name: /tmp/debug_file.yaml
 weight_goal: 50
 collision_weight: 50
-max_steps: 400
+max_steps: 300
 N: 50 # 149
 goal_tol: 0.01
 fail_threshold: 10.0
