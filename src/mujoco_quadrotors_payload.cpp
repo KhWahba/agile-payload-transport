@@ -73,10 +73,6 @@ Model_MujocoQuadsPayload::Model_MujocoQuadsPayload(
       throw std::runtime_error("mj_makeData failed");
   }
   // u_ref = Eigen::VectorXd::Ones(4 * params.num_robots);
-  tmp = mj_makeData(m);
-  if (!tmp) {
-      throw std::runtime_error("mj_makeData (tmp) failed");
-  }
   if (params.name == "") {
     name = "mujocoquadspayload";
   } else {
@@ -90,9 +86,6 @@ Model_MujocoQuadsPayload::Model_MujocoQuadsPayload(
       throw std::runtime_error("MuJoCo model loaded but has invalid dimensions (nv or nq == 0)");
   }
 
-  u_0.setOnes(4 * params.num_robots);
-  // u_ref.setConstant(0.95);
-  // @QUIM: fix this values
   translation_invariance = 3;
   invariance_reuse_col_shape = false;
   nx_col = m->nv;
@@ -104,7 +97,8 @@ Model_MujocoQuadsPayload::Model_MujocoQuadsPayload(
 
   arm = 0.707106781 * params.arm_length;
   u_nominal = params.m(0) * g / 4.; // now u is between [0,max_f]
-
+  double u_00 = ((params.m(0) + 0.005) * g / 4.)/u_nominal;
+  u_0 = Eigen::VectorXd::Constant(4 * params.num_robots, 1.0);
   B0 << 1, 1, 1, 1, -arm, -arm, arm, arm, -arm, arm, arm, -arm, -params.t2t,
       params.t2t, -params.t2t, params.t2t;
   B0 *= u_nominal;
@@ -373,14 +367,16 @@ void Model_MujocoQuadsPayload::calcV(Eigen::Ref<Eigen::VectorXd> ff,
   const int nb = params.num_robots + 1;             // payload + N quads
   auto qpos_mj = mjVec(d->qpos, m->nq);
   auto qvel_mj = mjVec(d->qvel, m->nv);
-  auto qacc_mj = mjVec(d->qacc, m->nv);
   auto ctrl_mj = mjVec(d->ctrl, m->nu);
   dyno2mj_pos(x.head(7*nb), nb, qpos_mj); // copy the dynobench qpos to mujoco qpos and reorder the quaternions
   qvel_mj = x.tail(m->nv);  // similarly for the velocities
   ctrl_mj = u*u_nominal; // copy the controls
   mj_forward(m, d);
+  auto qacc_mj = mjVec(d->qacc, m->nv);
   ff.head(m->nv) = qvel_mj;
   ff.tail(m->nv) = qacc_mj;
+  std::cout << "qacc_mj: " << qacc_mj.transpose() << std::endl;
+  std::cout << "x: " << x.transpose() << std::endl;
 }
 
 
@@ -420,6 +416,8 @@ void Model_MujocoQuadsPayload::step(Eigen::Ref<Eigen::VectorXd> xnext,
   mj2dyno_pos(qpos_mj, nb, xpos);               // wxyz → xyzw per body
   xnext.head(m->nq) = xpos;
   xnext.tail(m->nv) = qvel_mj;
+  auto qacc_mj = mjVec(d->qacc, m->nv);
+  // std::cout << "qacc_mj: " << qacc_mj.transpose() << std::endl;
 }
 
 
