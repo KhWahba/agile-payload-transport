@@ -79,34 +79,41 @@ generate_problem(const Generate_params &gen_args,
     std::vector<ptr<Cost>> feats_run;
 
     
-    Vxd control_ref = Vxd::Zero(nu);
     if (gen_args.track_reference) {
-      Vxd state_weights = Vxd::Constant(nx, 250.0);
+      if (t == 0) {
+        std::cout << "reference trajectory for tracking has " << ref_traj.states.size() << " states and "
+        << ref_traj.actions.size() << " actions." << std::endl;
+      }
+      Vxd state_weights = Vxd::Constant(nx, 100.0);
       Vxd state_ref     = Vxd::Zero(nx);
       state_ref = ref_traj.states.at(t);
-      std::cout << "state_ref at t " << t << ": " << state_ref.transpose() << std::endl;
       ptr<Cost> state_track = mk<State_cost>(nx, nu, nx, state_weights, state_ref);
       feats_run.push_back(state_track);
       if (t < ref_traj.actions.size()) {
-        Vxd control_weights = 10.0 * Vxd::Ones(nu);
+        Vxd control_weights = 20.0 * Vxd::Ones(nu);
+        Vxd control_ref = Vxd::Zero(nu);
         control_ref = ref_traj.actions.at(t);
-        std::cout << "control_ref at t " << t << ": " << control_ref.transpose() << std::endl;
-        ptr<Cost> control_track =
+        ptr<Cost> control_track_feature =
         mk<Control_cost>(nx, nu, nu, control_weights, control_ref);
-        feats_run.push_back(control_track);
+        feats_run.push_back(control_track_feature);
       }
     }
 
     if (!gen_args.track_reference && gen_args.track_goal) {
-      Vxd state_weights = Vxd::Constant(nx, 50.0);
-      Vxd state_ref     = Vxd::Zero(nx);
-      state_ref = ref_traj.states.at(t);
-      ptr<Cost> ref_feature = mk<State_cost_model>(
-        gen_args.model_robot, nx, nu,
-        state_weights,
-        gen_args.goal);      
-        feats_run.push_back(ref_feature);
-    }
+      // this is only tracking the goal at each time step if no reference is given (i.e., gen_args.track_reference == false)
+      Vxd state_weights = Vxd::Constant(nx, 100.0);
+      ptr<Cost> track_goal_feature = mk<State_cost>(nx, nu, nx, state_weights, gen_args.goal);      
+      feats_run.push_back(track_goal_feature);
+
+
+      Vxd control_weights = 50.0 * Vxd::Ones(nu);
+      Vxd control_hover = Vxd::Zero(nu);
+      control_hover = gen_args.model_robot->u_0;
+      // std::cout << "control_ref at t " << t << ": " << control_ref.transpose() << std::endl;
+      ptr<Cost> control_track_feature =
+      mk<Control_cost>(nx, nu, nu, control_weights, control_hover);
+      feats_run.push_back(control_track_feature);
+      }
 
     // collision cost
     if (gen_args.collisions && gen_args.model_robot->env) {
@@ -115,68 +122,18 @@ generate_problem(const Generate_params &gen_args,
       feats_run.push_back(cl_feature);
     }
 
-    if (gen_args.name == "mujocoquadspayload_switch3") {
-      Vxd state_weights = Vxd::Zero(nx);
-      Vxd state_ref     = Vxd::Zero(nx);
-
-      const int t_wp = 110;
-      if (std::abs(int(t) - t_wp) <= 4) {
-        V3d payload_pos(0.0, 0.0, 0.75);
-        V3d quad1_pos(0.0 ,  0.25, 1.0); 
-        V3d quad2_pos(0.0 , -0.25, 1.0); 
-        V3d quad3_pos(-0.25,   0.0, 1.0); 
-
-        state_weights.segment<3>(0)  = 1500.0 * V3d::Ones();
-        state_weights.segment<3>(7)  = 1500.0 * V3d::Ones();
-        state_weights.segment<3>(14) = 1500.0 * V3d::Ones();
-        state_weights.segment<3>(21) = 0.0 * V3d::Ones();
-        state_ref.segment<3>(0)      = payload_pos;
-        state_ref.segment<3>(7)      = quad1_pos;
-        state_ref.segment<3>(14)     = quad2_pos;
-        state_ref.segment<3>(21)     = quad3_pos;
-        std::cout << "adding waypoint constraints at t: " << t
-        << "\nstate_weights: " << state_weights.transpose()
-        << "\nstate_ref: " << state_ref.transpose() << std::endl;
-        ptr<Cost> state_feature = mk<State_cost>(
-          nx, nu, nx, state_weights, state_ref);
-          feats_run.push_back(state_feature);
-      } 
-    } else if (gen_args.name == "mujocoquadspayload_switch2") {
-      Vxd state_weights = Vxd::Zero(nx);
-      Vxd state_ref     = Vxd::Zero(nx);
-
-      const int t_wp = 175;
-      if (std::abs(int(t) - t_wp) <= 4) {
-        V3d payload_pos(0.25, 0.0, 0.8);
-        V3d quad1_pos(0.25 ,  0.25, 1.2); 
-        V3d quad2_pos(0.25 , -0.25, 1.2); 
-
-        state_weights.segment<3>(0)  = 500.0 * V3d::Ones();
-        state_weights.segment<3>(7)  = 500.0 * V3d::Ones();
-        state_weights.segment<3>(14) = 500.0 * V3d::Ones();
-        state_ref.segment<3>(0)      = payload_pos;
-        state_ref.segment<3>(7)      = quad1_pos;
-        state_ref.segment<3>(14)     = quad2_pos;
-        std::cout << "adding waypoint constraints at t: " << t
-        << "\nstate_weights: " << state_weights.transpose()
-        << "\nstate_ref: " << state_ref.transpose() << std::endl;
-        ptr<Cost> state_feature = mk<State_cost>(
-          nx, nu, nx, state_weights, state_ref);
-          feats_run.push_back(state_feature);
-      } 
-    }
     if (gen_args.states_reg) {
       auto ptr_derived = std::dynamic_pointer_cast<dynobench::Model_MujocoQuadsPayload>(gen_args.model_robot);
-      if (t < 1) {
+      if (t == 0) {
         std::cout << "adding regularization on state! " << std::endl;
         std::cout <<"state_weights: " <<ptr_derived->state_weights.transpose() << std::endl;
         std::cout <<"state_ref: " <<ptr_derived->state_ref.transpose() << std::endl;
       }
 
-      ptr<Cost> state_feature = mk<State_cost>(nx, nu, nx, ptr_derived->state_weights, ptr_derived->state_ref);
-      feats_run.push_back(state_feature);
+      ptr<Cost> state_reg_feature = mk<State_cost>(nx, nu, nx, ptr_derived->state_weights, ptr_derived->state_ref);
+      feats_run.push_back(state_reg_feature);
 
-        if (t < 1) std::cout << "adding regularization on acceleration! " << std::endl;
+        if (t == 0) std::cout << "adding regularization on acceleration! " << std::endl;
         
         ptr<Cost> acc_cost = mk<mujoco_quads_payload_acc>(
             gen_args.model_robot, gen_args.model_robot->k_acc);
@@ -208,7 +165,7 @@ generate_problem(const Generate_params &gen_args,
     DYNO_CHECK_EQ(static_cast<size_t>(gen_args.goal.size()),
                   gen_args.model_robot->nx, AT);
 
-    Eigen::VectorXd goal_weight = gen_args.model_robot->goal_weight;
+    Eigen::VectorXd goal_weight = options_trajopt.weight_goal * gen_args.model_robot->goal_weight;
 
     if (!goal_weight.size()) {
       goal_weight.resize(gen_args.model_robot->nx);
@@ -216,15 +173,8 @@ generate_problem(const Generate_params &gen_args,
     }
 
     CSTR_V(goal_weight);
-
-    ptr<Cost> state_feature = mk<State_cost_model>(
-        gen_args.model_robot, nx, nu,
-        gen_args.penalty * options_trajopt.weight_goal * goal_weight,
-        gen_args.goal);
-    // std::cout << "goal: " << gen_args.goal.transpose() << std::endl;
-    // ptr<Cost> state_feature = mk<State_cost>(nx, nu, nx, gen_args.penalty * options_trajopt.weight_goal * goal_weight, gen_args.goal);
-
-    feats_terminal.push_back(state_feature);
+    ptr<Cost> goal_feature = mk<State_cost>(nx, nu, nx, goal_weight, gen_args.goal);
+    feats_terminal.push_back(goal_feature);
   }
   am_terminal = to_am_base(mk<ActionModelDyno>(dyn, feats_terminal));
   CHECK(am_terminal, AT);
