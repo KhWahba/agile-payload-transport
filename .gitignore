@@ -1,7 +1,7 @@
 .vscode
 build
 *.png
-*.mp4
-media/
+# *.mp4
+# media/
 deps/
 __pycache__/
