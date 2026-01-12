@@ -1,6 +1,6 @@
 training:
-  train_ratio: 0.8
-  epochs: 400
+  train_ratio: 1.0
+  epochs: 500
   batch_size: 32
   learning_rate: 0.0003
   # lambda_reg: 0.01
@@ -9,33 +9,33 @@ model:
   depth: 3
 
 output:
-  save_dir: bc_traj
-  loss_pdf: bc_traj/training.pdf
+  save_dir: bc_traj_obs2
+  loss_pdf: bc_traj_obs2/training.pdf
   generate_onnx: true
-  onnx_path: bc_traj/bc_policy.onnx   # optional; default shown below
+  onnx_path: bc_traj_obs2/bc_policy_obs2.onnx   # optional; default shown below
 
 data:
-  traj_path: data/traj1.yaml
+  # traj_path: data/obs2_opt.yaml
+  traj_path: data/nmpc_result.yaml
 
 sim:
-  env_path: /home/khaledwahba94/inria/agile-payload-transport/models/xml/1cfs_payload_tendons_empty.xml
-  horizon: 50           # optional (defaults to len(actions))
+  env_path: /home/khaledwahba94/inria/agile-payload-transport/models/xml/2cfs_payload_tendons_obs.xml
+  horizon: 10000           # optional (defaults to len(actions))
   init_u_prev: traj     # optional (zeros or traj)
-  video_out_dir: bc_rollout_video  # optional
-  t_start: 100              # optional (defaults to 0)
+  video_out_dir: bc_rollout_video_obs2  # optional
+  t_start: 0              # optional (defaults to 0)
   log: true
-  rollout_ref: false
+  rollout_ref: true
 
 video_cfg: 
   width: 1280
   height: 720
-  fps: 60
+  fps: 50
   bitrate: "6M"           # ffmpeg target bitrate
   loops: 1               # repeat the trajectory this many times in the video (per view)
-  views: ["side"]  #  "auto" for all four or ["top", "side", "front", "diag"]
+  views: ["side", "front", "top", "diag"]  #  "auto" for all four or ["top", "side", "front", "diag"]
 
   # video bounds (required)
-  env_min: [-0.1,  -3.0, 0.0]
-  env_max: [ 1.5,  3.0, 1.0]
-
-  scale_factor: 0.5
+  env_max: [2, 0.5, 1.0]
+  env_min: [-2, -0.5, 0.0]
+  scale_factor: 1.2

@@ -194,7 +194,8 @@ int main(int argc, char **argv)
   std::unique_ptr<BCPolicyOnnx> bc_policy;
   Eigen::VectorXd u_prev_exec = Eigen::VectorXd::Zero(nu);   // previous executed control (for BC warm start)
   Trajectory init_guess, warm_start_N, ref_traj, ref_traj_N; // initialize full and windowed trajectories
-
+  double umax = 1.4;
+  
   if (use_bc_policy) {
     if (bc_onnx_path.empty()) {
       throw std::runtime_error("use_bc_policy=true but bc_onnx_path is empty");
@@ -274,8 +275,10 @@ int main(int argc, char **argv)
     problem.start = x_init;
     execute_nmpc_mujoco(problem, warm_start_N, ref_traj_N, sol_window, sol_broken, options_trajopt);    
     Eigen::VectorXd u = sol_window.actions.front();
+    // Eigen::VectorXd u = s.actions.front();
+
     Eigen::VectorXd xnext(nx);
-    u += control_noise * Eigen::VectorXd::Random(nu);
+    u += 0.5 * control_noise * umax * (Eigen::VectorXd::Random(nu).array() + 1.0).matrix();
     // propagate one step in the real robot
     robot->step(xnext, x_init.head(nx), u.head(nu), robot->ref_dt);
     // log results

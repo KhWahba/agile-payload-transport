@@ -98,7 +98,7 @@ Model_MujocoQuadsPayload::Model_MujocoQuadsPayload(
   arm = 0.707106781 * params.arm_length;
   u_nominal = params.m(0) * g / 4.; // now u is between [0,max_f]
   double u_00 = ((params.m(0) + 0.005) * g / 4.)/u_nominal;
-  u_0 = Eigen::VectorXd::Constant(4 * params.num_robots, 1.0);
+  u_0 = Eigen::VectorXd::Constant(4 * params.num_robots, u_00);
   B0 << 1, 1, 1, 1, -arm, -arm, arm, arm, -arm, arm, arm, -arm, -params.t2t,
       params.t2t, -params.t2t, params.t2t;
   B0 *= u_nominal;

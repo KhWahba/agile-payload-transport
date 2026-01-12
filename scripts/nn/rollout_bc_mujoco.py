@@ -109,6 +109,7 @@ def rollout(cfg: dict):
 
     # optional video settings
     video_out_dir = cfg["sim"].get("video_out_dir", "rollout_videos")
+    os.makedirs(video_out_dir, exist_ok=True)
     video_cfg = cfg.get("video_cfg", None)
 
     # action limits (optional)
