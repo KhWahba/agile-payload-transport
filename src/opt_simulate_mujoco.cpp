@@ -65,7 +65,7 @@ static void apply_camera_preset(mjvCamera& cam,
 void execute_simMujoco(std::string &env_file,
                        std::string &initial_guess_file,
                        dynobench::Trajectory &sol,
-                       const std::string &dynobench_base,
+                       const std::string &models_dir,
                        const std::string &video_path,
                        const std::string &camera_view,
                        int num_repeats, bool view_ghost, bool feasible) {
@@ -81,13 +81,13 @@ void execute_simMujoco(std::string &env_file,
         std::vector<std::string> views = {"side","top","front","diag"};
         for (const auto& v : views) {
             std::string out = base + "_" + v + ".mp4";
-            execute_simMujoco(env_file, initial_guess_file, sol, dynobench_base, out, v, num_repeats, view_ghost, feasible);
+            execute_simMujoco(env_file, initial_guess_file, sol, models_dir, out, v, num_repeats, view_ghost, feasible);
         }
         return;
     }
 
 
-    std::string models_base_path = dynobench_base + "/models/";
+    std::string models_base_path = models_dir;
     dynobench::Problem  problem(env_file.c_str());
     problem.models_base_path = models_base_path;
     dynobench::Trajectory init_guess;
@@ -421,33 +421,11 @@ void execute_nmpc_mujoco(dynobench::Problem &problem,
                        dynobench::Trajectory &init_guess,
                        dynobench::Trajectory &ref_traj,
                        dynobench::Trajectory &sol,
-                        dynobench::Trajectory &sol_broken, std::string cfg_file) 
+                        dynobench::Trajectory &sol_broken, Options_trajopt options_trajopt) 
 {
     Result_opti result;
-    Options_trajopt options_trajopt;
-    if (cfg_file == "") {
-        options_trajopt.solver_id = 1;
-        options_trajopt.max_iter = 3;
-        options_trajopt.noise_level = 1e-4;
-        options_trajopt.collision_weight = 250;
-        options_trajopt.weight_goal = 500.;
-    } else { 
-        options_trajopt.read_from_yaml(cfg_file.c_str());
-    }
-    if (ref_traj.states.size() == 0) {
-        options_trajopt.track_reference = false;
-    }
     std::cout << "optimizing trajectory..." << std::endl;
     trajectory_optimization(problem, init_guess, ref_traj, options_trajopt, sol, result);
     sol_broken.states = result.xs_out;
     sol_broken.actions = result.us_out;
-
-
-    // if (result.feasible) {
-    //     std::cout << "Optimization done" << std::endl;
-    //     return true;
-    // } else {
-    //     std::cout << "Optimization failed." << std::endl;
-    //     return false;
-    // }
 }

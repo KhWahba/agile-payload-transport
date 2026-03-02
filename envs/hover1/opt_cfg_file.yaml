@@ -7,19 +7,19 @@ control_bounds: true
 states_reg: false
 disturbance: 0.0
 th_stop: .1
-init_reg: 1e-2
+init_reg: 1e1
 th_acceptnegstep: .1
 noise_level: 0.0
-max_iter: 1
+max_iter: 3
 debug_file_name: /tmp/debug_file.yaml
-weight_goal: 50
+weight_goal: 1000
 collision_weight: 50
-max_steps: 400
+max_steps: 600
 N: 50 # 149
 goal_tol: 0.01
 fail_threshold: 10.0
-track_reference: true
-track_goal: false
+track_reference: false
+track_goal: true
 control_noise: 0
 use_bc_policy: false
 bc_onnx_path: /home/khaledwahba94/inria/agile-payload-transport/scripts/nn/bc_traj/bc_policy.onnx

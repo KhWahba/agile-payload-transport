@@ -1,0 +1,11 @@
+init_file: "../envs/empty2/result_dbcbs_opt.yaml"
+ref_file: "../envs/empty2/result_dbcbs_opt.yaml"
+env_file: "../envs/empty2/env.yaml"
+models_dir: "models"
+results_path: "../envs/empty2/nmpc_result.yaml"
+repeats: 1
+views: ["side", "front"]
+video_prefix: "../media/empty2/empty2"
+view_ref: true
+optimize: true
+visualize: true

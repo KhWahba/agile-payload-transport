@@ -1,6 +1,9 @@
 #pragma once
 #include "motions.hpp"
 #include <string>
+#include "options.hpp" 
+using namespace dynobench;
+using namespace dynoplan;
 
 bool execute_optMujoco(std::string &env_file,
                        std::string &initial_guess_file,
@@ -22,4 +25,4 @@ void execute_nmpc_mujoco(dynobench::Problem &problem,
                        dynobench::Trajectory &init_guess,
                           dynobench::Trajectory &ref_traj,
                        dynobench::Trajectory &sol,
-                        dynobench::Trajectory &sol_broken, std::string cfg_file);
+                        dynobench::Trajectory &sol_broken, Options_trajopt options_trajopt);

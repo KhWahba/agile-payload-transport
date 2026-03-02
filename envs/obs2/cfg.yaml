@@ -1,0 +1,11 @@
+init_file: "../envs/obs2/result_dbcbs_opt.yaml"
+ref_file: "../envs/obs2/result_dbcbs_opt.yaml"
+env_file: "../envs/obs2/env.yaml"
+models_dir: "models"
+results_path: "../envs/obs2/nmpc_result.yaml"
+repeats: 1
+views: ["side", "front", "diag", "top"]
+video_prefix: "../media/obs2/obs2"
+view_ref: true
+optimize: true
+visualize: true

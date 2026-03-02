@@ -1,0 +1,9 @@
+env_file: "../envs/hover2/env.yaml"
+models_dir: "models"
+results_path: "../envs/hover2/nmpc_result.yaml"
+repeats: 1
+views: ["side", "front"]
+video_prefix: "../media/hover2/hover2"
+view_ref: true
+optimize: true
+visualize: true

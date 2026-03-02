@@ -5,7 +5,11 @@ project(
   VERSION 0.1.0
   LANGUAGES CXX)
 
-set(MJ_ROOT "$ENV{HOME}/pc-dbCBS/deps/mujoco-3.3.6")
+# MuJoCo
+set(MJ_ROOT "$ENV{HOME}/inria/agile-payload-transport/deps/mujoco-3.3.6")
+
+# ONNX Runtime (CPU)
+set(ONNXRUNTIME_ROOT "/opt/onnxruntime" CACHE PATH "ONNX Runtime root directory")
 
 find_package(Boost REQUIRED COMPONENTS program_options serialization
                                        stacktrace_basic)
@@ -62,6 +66,27 @@ target_link_libraries(
          mujoco::mujoco)
 
 
+# ---- BC Policy (ONNX Runtime) ----
+add_library(bc_policy_onnx
+  ./src/bc_policy_onnx.cpp
+)
+
+target_include_directories(
+  bc_policy_onnx
+  PUBLIC $<INSTALL_INTERFACE:include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         ${ONNXRUNTIME_ROOT}/include
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_directories(bc_policy_onnx PUBLIC ${ONNXRUNTIME_ROOT}/lib)
+
+target_link_libraries(
+  bc_policy_onnx
+  PUBLIC Eigen3::Eigen
+  PRIVATE onnxruntime
+)
+
 
 add_executable(nmpc_mujoco ./src/nmpc_mujoco.cpp)
 
@@ -97,9 +122,13 @@ target_link_libraries(
 nmpc_mujoco
 PRIVATE ${CROCODDYL_LIBRARIES}
         optimization
+        bc_policy_onnx
         Eigen3::Eigen
         dynobench::dynobench
         fcl
         yaml-cpp
         Boost::program_options
         Boost::serialization)
+
+
+

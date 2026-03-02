@@ -10,10 +10,13 @@
 #include "ocp.hpp"
 #include "mujoco_quadrotors_payload.hpp"
 
+#include "bc_policy_onnx.hpp"
+
 namespace po = boost::program_options;
 namespace fs = std::filesystem;
 
 using namespace dynobench;
+using namespace dynoplan;
 
 static inline void ensure_horizon(Trajectory& traj, std::size_t N,
                                   std::size_t nx, std::size_t nu)
@@ -26,8 +29,7 @@ static inline void ensure_horizon(Trajectory& traj, std::size_t N,
   while (traj.actions.size() < N) {
     Eigen::VectorXd u = traj.actions.empty()
                         ? Eigen::VectorXd::Zero(nu)
-                        :  Eigen::VectorXd::Zero(nu);
-                        //  : Eigen::VectorXd(traj.actions.back()); // force a plain copy
+                         : Eigen::VectorXd(traj.actions.back()); // force a plain copy
     if (u.size() != (Eigen::Index)nu) u.setZero(nu); // safety
     traj.actions.push_back(u);
   }
@@ -74,38 +76,39 @@ static inline Trajectory shift_and_pad(const Trajectory &solved_window,
   return warm;
 }
 
-static inline Trajectory slice_window(const Trajectory& traj,
-                                      std::size_t offset, std::size_t N)
+static inline void slice_window(Trajectory& w, const Trajectory& traj, std::size_t offset, std::size_t N, Eigen::VectorXd& u_hover, Eigen::VectorXd& goal)
 {
-  Trajectory w;
-
+  w.actions.clear();
+  w.states.clear();
   if (offset < traj.actions.size()) {
     auto a0 = traj.actions.begin() + offset;
     auto a1 = (offset + N <= traj.actions.size()) ? a0 + N : traj.actions.end();
-    w.actions.assign(a0, a1); // copies into plain Eigen::VectorXd
+    w.actions.assign(a0, a1);
+  } 
+  if (w.actions.size() < N) {
+    w.actions.resize(N, u_hover);
+  } else if (w.actions.size() > N) {
+    w.actions.resize(N);
   }
   if (offset < traj.states.size()) {
     auto s0 = traj.states.begin() + offset;
     auto s1 = (offset + N + 1 <= traj.states.size()) ? s0 + (N + 1) : traj.states.end();
     w.states.assign(s0, s1);
+  } 
+  // pad states to N+1 with goal
+  if (w.states.size() < N + 1) {
+    w.states.resize(N + 1, goal);
+  } else if (w.states.size() > N + 1) {
+    w.states.resize(N + 1);
   }
-  return w;
 }
 
-// Append one applied (x1, u0) to the stitched trajectory
-static inline void append_step(Trajectory &stitched,
-                               const Eigen::VectorXd &x1,
-                               const Eigen::VectorXd &u0)
-{
-  stitched.actions.push_back(u0);
-  stitched.states.push_back(x1);
-}
 
 int main(int argc, char **argv)
 {
   // --- CLI ---
   std::string prob_file, cfg_file;
-  // std::string env_file, init_file, ref_file, dynobench_base, results_path, cfg_file;
+  // std::string env_file, init_file, ref_file, models_base, results_path, cfg_file;
 
   po::options_description desc("main_mujoco_opt_simulate options");
   desc.add_options()("help,h", "Show help")
@@ -120,24 +123,40 @@ int main(int argc, char **argv)
     std::cout << desc << std::endl;
     return 0;
   }
+  if (prob_file.empty()) throw std::runtime_error("Missing --prob_file");
+  if (cfg_file.empty())  throw std::runtime_error("Missing --cfg_file");
 
   YAML::Node problem_file = YAML::LoadFile(prob_file);
-  bool do_optimize = problem_file["optimize"] ? problem_file["optimize"].as<bool>() : false;
-  bool do_visualize = problem_file["visualize"] ? problem_file["visualize"].as<bool>() : false;
-  std::string env_file = problem_file["env_file"] ? problem_file["env_file"].as<std::string>() : "";
-  std::string init_file = problem_file["init_file"] ? problem_file["init_file"].as<std::string>() : "";
-  std::string ref_file = problem_file["ref_file"] ? problem_file["ref_file"].as<std::string>() : "";
-  std::string dynobench_base = problem_file["dynobench_base"] ? problem_file["dynobench_base"].as<std::string>() : "";
-  std::string results_path = problem_file["results_path"] ? problem_file["results_path"].as<std::string>() : "../result_opt.yaml";  
-  bool view_ref = problem_file["view_ref"] ? problem_file["view_ref"].as<bool>() : false;
-  std::string base = problem_file["video_prefix"] ? problem_file["video_prefix"].as<std::string>() : "";
-  int repeats = problem_file["repeats"] ? problem_file["repeats"].as<int>() : 1;
+  YAML::Node opt_file     = YAML::LoadFile(cfg_file);
+
+  bool do_optimize               = problem_file["optimize"] ? problem_file["optimize"].as<bool>() : false;
+  bool do_visualize              = problem_file["visualize"] ? problem_file["visualize"].as<bool>() : false;
+  std::string env_file           = problem_file["env_file"] ? problem_file["env_file"].as<std::string>() : "";
+  std::string init_file          = problem_file["init_file"] ? problem_file["init_file"].as<std::string>() : "";
+  std::string ref_file           = problem_file["ref_file"] ? problem_file["ref_file"].as<std::string>() : "";
+  std::string models_dir         = problem_file["models_dir"] ? problem_file["models_dir"].as<std::string>() : "";
+  std::string results_path       = problem_file["results_path"] ? problem_file["results_path"].as<std::string>() : "../result_opt.yaml";  
+  bool view_ref                  = problem_file["view_ref"] ? problem_file["view_ref"].as<bool>() : false;
+  std::string base               = problem_file["video_prefix"] ? problem_file["video_prefix"].as<std::string>() : "";
+  int repeats                    = problem_file["repeats"] ? problem_file["repeats"].as<int>() : 1;
   std::vector<std::string> views = problem_file["views"] ? problem_file["views"].as<std::vector<std::string>>() : std::vector<std::string>{"auto"};
 
-
+  bool use_bc_policy       = opt_file["use_bc_policy"] ? opt_file["use_bc_policy"].as<bool>() : false;
+  std::string bc_onnx_path = opt_file["bc_onnx_path"] ? opt_file["bc_onnx_path"].as<std::string>() : "";
+  bool bc_rollout_as_ref   = opt_file["bc_rollout_as_ref"] ? opt_file["bc_rollout_as_ref"].as<bool>() : true;
+  double bc_u_clip_min     = opt_file["bc_u_clip_min"] ? opt_file["bc_u_clip_min"].as<double>() : -1e30;
+  double bc_u_clip_max     = opt_file["bc_u_clip_max"] ? opt_file["bc_u_clip_max"].as<double>() :  1e30;
+  int bc_threads           = opt_file["bc_threads"] ? opt_file["bc_threads"].as<int>() : 1;
+  double control_noise     = opt_file["control_noise"] ? opt_file["control_noise"].as<double>() : 1e-3;
+  double fail_threshold    = opt_file["fail_threshold"] ? opt_file["fail_threshold"].as<double>() : 5.0;
+  double goal_tol          = opt_file["goal_tol"]       ? opt_file["goal_tol"].as<double>() : 0.05;
+  size_t N                 = static_cast<std::size_t>(opt_file["N"].as<int>()); // horizon
+  size_t max_steps         = static_cast<std::size_t>(opt_file["max_steps"].as<int>());
+  
+  Options_trajopt options_trajopt;
+  options_trajopt.read_from_yaml(opt_file);
   // If neither optimize nor visualize requested, do nothing (as specified)
-  if (!do_optimize && !do_visualize)
-  {
+  if (!do_optimize && !do_visualize) {
     std::cout << "Nothing to do: neither -o/--optimize nor -v/--visualize specified.\n";
     std::cout << "Run with --help to see options.\n";
     return 0;
@@ -151,151 +170,146 @@ int main(int argc, char **argv)
       throw std::runtime_error(std::string("Missing required option --") + name);
     }
   };
-  need("env_file", env_file);
-  need("dynobench_base", dynobench_base);
 
-  // Normalize paths
-  auto as_abs = [](const std::string &p) -> std::string
-  {
-    try
-    {
-      return fs::weakly_canonical(fs::path(p)).string();
-    }
-    catch (...)
-    {
-      return p;
-    }
-  };
-  env_file = as_abs(env_file);
-  init_file = as_abs(init_file);
-  dynobench_base = as_abs(dynobench_base);
-
-  YAML::Node opt_file = YAML::LoadFile(cfg_file);
-  std::size_t N = static_cast<std::size_t>(opt_file["N"].as<int>()); // horizon
-  std::size_t max_steps = static_cast<std::size_t>(opt_file["max_steps"].as<int>());
-
-  // initialize problem
-  std::string models_base_path = dynobench_base + "/models/";
+  // initialize problem AND robot model
+  fs::path build_dir = fs::current_path(); // e.g., /path/to/agile-payload-transport/build
+  std::string models_dir_path = build_dir.parent_path().string() + "/"+ models_dir +"/";
   Problem problem(env_file.c_str());
-  problem.models_base_path = models_base_path;
+  std::string models_dir_abs = fs::absolute(models_dir_path).string();
+  problem.models_base_path = models_dir_abs;
   dynoplan::Result_opti result;
   std::shared_ptr<dynobench::Model_robot> robot;
-  robot = dynobench::robot_factory((models_base_path + problem.robotType + ".yaml").c_str(),
+  robot = dynobench::robot_factory((models_dir_abs + problem.robotType + ".yaml").c_str(),
                                    problem.p_lb, problem.p_ub);
 
-  if (!robot)
-  {
+  if (!robot) {
     throw std::runtime_error("Failed to create robot model for type: " + problem.robotType);
   }
+  load_env(*robot, problem);
+  // known sizes from the robot model
+  const std::size_t nx = static_cast<std::size_t>(robot->nx);
+  const std::size_t nu = static_cast<std::size_t>(robot->nu);
 
-
-  if (opt_file["init_file"])
-  {
-    init_file = opt_file["init_file"].as<std::string>();
+  // initialize BC policy if needed
+  std::unique_ptr<BCPolicyOnnx> bc_policy;
+  Eigen::VectorXd u_prev_exec = Eigen::VectorXd::Zero(nu);   // previous executed control (for BC warm start)
+  Trajectory init_guess, warm_start_N, ref_traj, ref_traj_N; // initialize full and windowed trajectories
+  double umax = 1.4;
+  
+  if (use_bc_policy) {
+    if (bc_onnx_path.empty()) {
+      throw std::runtime_error("use_bc_policy=true but bc_onnx_path is empty");
+    }
+    bc_policy = std::make_unique<BCPolicyOnnx>(bc_onnx_path, bc_threads);
+    std::cout << "[BC] Enabled. Loaded ONNX policy from: " << bc_onnx_path << std::endl;
+  } else {  
+    // NO POLICY: load init and ref trajectories from files
+    // initilize guess and solution trajectories
+    if (!init_file.empty()) {
+      init_guess.read_from_yaml(init_file.c_str());
+    } else {
+      std::cout << "No init_file specified.\n";
+      warm_start_N.num_time_steps = N;
+    }
+    if (!ref_file.empty()) {
+      ref_traj.read_from_yaml(ref_file.c_str());
+    } else {
+      options_trajopt.track_reference = false;
+      options_trajopt.track_goal = true;
+      ref_traj_N.num_time_steps = N;
+      ref_traj_N.states.resize(N + 1);
+      std::for_each(ref_traj_N.states.begin(), ref_traj_N.states.end(),
+                    [&](auto &x) {
+                        x = problem.goal;
+                    });
+      std::cout << "No ref_file specified.\n";
+    }
   }
-
-  // initilize guess and solution trajectories
-  Trajectory init_guess, warm_start, ref_traj, ref_traj_N;
-  if (!init_file.empty()) {
-    init_guess.read_from_yaml(init_file.c_str());
-  } else {
-    std::cout << "No init_file specified.\n";
-    warm_start.num_time_steps = N;
-    
-  }
-  if (!ref_file.empty())
-  {
-    ref_traj.read_from_yaml(ref_file.c_str());
-  }
-
-
 
   // main NMPC loop
-  Trajectory sol, sol_broken, sol_window;
+  Trajectory sol, sol_window, sol_broken; 
   sol.states.clear();
   sol.actions.clear();
   sol.states.push_back(problem.start);
 
-
-  int num_bodies = int((robot->nx) / 13);
-  int nv = 6 * (num_bodies);
-  int nq = 7 * (num_bodies);
-  // double x_weightb_val = 350.0;
-  if (opt_file["x_weightb"])
-  {
-    double x_weightb_val = opt_file["x_weightb"].as<double>();
-    robot->x_weightb.head(nq + nv) = Eigen::VectorXd::Ones(robot->nx) * x_weightb_val;
-    robot->x_weightb.segment(3, 4) = Eigen::VectorXd::Zero(4);                    // paylaod quat
-    robot->x_weightb.segment(7 * (num_bodies) + 3, 3) = Eigen::VectorXd::Zero(3); // ang vel payload
-  }
-
   Eigen::VectorXd x_init = problem.start;
-  Eigen::VectorXd x;
-  double noise_level = opt_file["control_noise"] ? opt_file["control_noise"].as<double>() : 1e-3;
-  double fail_threshold = opt_file["fail_threshold"].as<double>() ? opt_file["fail_threshold"].as<double>() : 5.0;
-  double goal_tol = opt_file["goal_tol"].as<double>() ? opt_file["goal_tol"].as<double>() : 0.05;
-  int k_goal = 0;
-  // known sizes from the robot model
-  const std::size_t nx = static_cast<std::size_t>(robot->nx);
-  const std::size_t nu = static_cast<std::size_t>(robot->nu);
-  
+  int k_goal = 0; //  log step when goal was reached
+
   for (int k = 0; k < max_steps; ++k) {
-    
-    if (!init_file.empty()) {
-      const std::size_t start_idx =
-      std::min<std::size_t>(k, init_guess.states.size() ? init_guess.states.size()-1 : 0);
-      warm_start = slice_window(init_guess, start_idx, N);
-      ensure_horizon(warm_start, N, nx, nu);
+    std::cout << "=== NMPC Step " << k << " ===\n";    
+    if (use_bc_policy && bc_policy) {
+      bc_policy->predict_rollout(
+          N,
+          robot.get(),
+          x_init,
+          u_prev_exec,
+          &warm_start_N.states,
+          &warm_start_N.actions,
+          bc_u_clip_min,
+          bc_u_clip_max
+      );
+      // use rollout as reference too 
+      ref_traj_N = warm_start_N;
+      if (k == 0) { 
+        std::cout << "[BC] warm_start_N states=" << warm_start_N.states.size()
+                  << " actions=" << warm_start_N.actions.size() << std::endl;
+        std::cout << "[BC] first u=" << warm_start_N.actions.front().transpose() << std::endl;
+      }
     } else {
-      warm_start = shift_and_pad(sol, N, nx, nu);
-      ensure_horizon(warm_start, N, nx, nu);
+      if (!init_file.empty()) {
+        const std::size_t start_idx = std::min<std::size_t>(k, init_guess.actions.size() ? init_guess.actions.size()-1 : 0);
+        slice_window(warm_start_N, init_guess, k, N, robot->u_0, problem.goal);
+      } else {
+        // TODO: debug shift and pad
+        warm_start_N = shift_and_pad(sol, N, nx, nu);
+        ensure_horizon(warm_start_N, N, nx, nu);
+      }
+      if (!ref_file.empty()) {
+        std::size_t max_k_u = (ref_traj.actions.size() > 0) ? (ref_traj.actions.size() - 1) : 0;
+        std::size_t start_idx = std::min<std::size_t>(k, max_k_u);
+        std::cout << "Slicing reference trajectory from index " << start_idx << ", N: " << N << "\n";
+        slice_window(ref_traj_N, ref_traj, k, N, robot->u_0, problem.goal);
+      } 
     }
-    
-    if (!ref_file.empty()) {
-      const std::size_t start_idx =
-      std::min<std::size_t>(k, ref_traj.states.size() ? ref_traj.states.size()-1 : 0);
-      ref_traj_N = slice_window(ref_traj, start_idx, N);
-      ensure_horizon(ref_traj_N, N, nx, nu);
-    }
-    
+      
     problem.start = x_init;
-    auto t_start = std::chrono::high_resolution_clock::now();
-    execute_nmpc_mujoco(problem, warm_start, ref_traj_N, sol_window, sol_broken, cfg_file);
-    auto t_end = std::chrono::high_resolution_clock::now();
-    auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-    std::cout << "execute_nmpc_mujoco took " << duration_ms << " ms\n";
-    Eigen::VectorXd x = x_init;
+    execute_nmpc_mujoco(problem, warm_start_N, ref_traj_N, sol_window, sol_broken, options_trajopt);    
     Eigen::VectorXd u = sol_window.actions.front();
-    Eigen::VectorXd xnext(robot->nx);
-    u += noise_level * Eigen::VectorXd::Random(nu);
-    robot->step(xnext, x.head(robot->nx), u.head(robot->nu), robot->ref_dt);
+    // Eigen::VectorXd u = s.actions.front();
+
+    Eigen::VectorXd xnext(nx);
+    u += 0.5 * control_noise * umax * (Eigen::VectorXd::Random(nu).array() + 1.0).matrix();
+    // propagate one step in the real robot
+    robot->step(xnext, x_init.head(nx), u.head(nu), robot->ref_dt);
+    // log results
     sol.states.push_back(xnext);
     sol.actions.push_back(u);
-
+    // log control for next BC warm start (if used)
+    u_prev_exec = u;
+    // prepare for next iteration
     x_init = xnext;
+    // compute distance to goal
     if (robot->distance(sol.states.back(), problem.goal) <= goal_tol) {
       if (k_goal == 0 && k != 0) {
         k_goal = k;
-        std::cout << "Goal reached at step " << k << "\n";
+        std::cout << "Goal reached at step " << k << " with distance " << robot->distance(sol.states.back(), problem.goal) << "\n";
         // break;
       }
       else if (k == 0 && k_goal == 0) {
         k_goal = 0;
         std::cout << "Goal reached at step 0\n";
       }
-    }
-    else if (robot->distance(sol.states.back(), problem.goal) > fail_threshold)
-    {
+    } else if (robot->distance(sol.states.back(), problem.goal) > fail_threshold) {
       double dist = robot->distance(sol.states.back(), problem.goal);
       std::cout << "Tracking failed: distance (" << dist << ") exceeded threshold (" << fail_threshold << ") at step " << k << "\n";
       break;
-    }
-    else
-    {
+    } else {
       std::cout << "Goal distance: " << robot->distance(sol.states.back(), problem.goal) << std::endl;
-    }
+    }  
   }
+
   if (max_steps < 2) {
+    // This is for debugging the optimization on the full problem
     sol = sol_window; // if only one step, show ghost of init
   }
   std::cout << "states size: " << sol.states.size() << std::endl;
@@ -310,9 +324,16 @@ int main(int argc, char **argv)
   if (!results_path.empty()) {
     sol.to_yaml_format(results_path.c_str());
     std::cout << "Saved NMPC stitched trajectory to: " << results_path << "\n";
+  } else {
+    std::cout << "No results_path specified, not saving trajectory.\n";
+    return 0;
   }
 
-  // std::string base = vm["video_prefix"].as<std::string>();
+  // --- VISUALIZATION ---
+  if (!do_visualize) {
+    return 0;
+  }
+
   if (base.empty()) {
     fs::path init_p(init_file);
     base = (init_p.parent_path() / (init_p.stem().string() + "_viz")).string();
@@ -321,16 +342,16 @@ int main(int argc, char **argv)
   
   Trajectory empty_traj;
   // Remove .yaml, add random number, then append .yaml
-  std::string tmp_init_guess_file = init_file;
+  std::string tmp_ref_padded_file = init_file;
 
-  if (!tmp_init_guess_file.empty()) {
-    size_t pos = tmp_init_guess_file.rfind(".yaml");
+  if (!tmp_ref_padded_file.empty()) {
+    size_t pos = tmp_ref_padded_file.rfind(".yaml");
     if (pos != std::string::npos) {
-      tmp_init_guess_file = tmp_init_guess_file.substr(0, pos);
+      tmp_ref_padded_file = tmp_ref_padded_file.substr(0, pos);
     }
     // Generate a random number
     int rand_num = std::rand();
-    tmp_init_guess_file += std::to_string(rand_num) + ".yaml";
+    tmp_ref_padded_file += std::to_string(rand_num) + ".yaml";
     empty_traj.read_from_yaml(init_file.c_str());
   }
   empty_traj.start = problem.start;
@@ -347,22 +368,18 @@ int main(int argc, char **argv)
       empty_traj.actions.push_back(empty_traj.actions.back());
     }
   }
-  std::cout << "Writing temporary empty trajectory to: " << tmp_init_guess_file << "\n";
-  empty_traj.to_yaml_format(tmp_init_guess_file.c_str());
-  if (views.size() == 1 && views[0] == "auto")
-  {
+  std::cout << "Writing temporary empty trajectory to: " << tmp_ref_padded_file << "\n";
+  empty_traj.to_yaml_format(tmp_ref_padded_file.c_str());
+  if (views.size() == 1 && views[0] == "auto") {
     std::string video_path = base + ".mp4"; // AUTO strips .mp4 and appends suffixes
     std::cout << "Writing videos to base: " << base << "_{side,top,front,diag}.mp4 (repeats=" << repeats << ")\n";
-    execute_simMujoco(env_file, tmp_init_guess_file, sol, dynobench_base,
+    execute_simMujoco(env_file, tmp_ref_padded_file, sol, models_dir_abs,
                       video_path, "auto", repeats, view_ghost, true /*feasible*/);
-  }
-  else
-  {
-    for (const auto &v : views)
-    {
+  } else {
+    for (const auto &v : views) {
       std::string out = base + "_" + v + ".mp4";
       std::cout << "Writing: " << out << " (repeats=" << repeats << ")\n";
-      execute_simMujoco(env_file, tmp_init_guess_file, sol, dynobench_base,
+      execute_simMujoco(env_file, tmp_ref_padded_file, sol, models_dir_abs,
                         out, v, repeats, view_ghost, true /*feasible*/);
     }
   }

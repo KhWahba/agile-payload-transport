@@ -477,6 +477,25 @@ struct Control_cost : Cost {
                         Eigen::Ref<Eigen::MatrixXd> Lxu,
                         const Eigen::Ref<const Eigen::VectorXd> &x,
                         const Eigen::Ref<const Eigen::VectorXd> &u);
+  // Setter for u_weight
+  void set_u_weight(const Eigen::VectorXd& new_u_weight) {
+    u_weight = new_u_weight;
+  }
+
+  // Getter for u_weight
+  const Eigen::VectorXd& get_u_weight() const {
+    return u_weight;
+  }
+
+  // Setter for u_ref
+  void set_u_ref(const Eigen::VectorXd& new_u_ref) {
+    u_ref = new_u_ref;
+  }
+
+  // Getter for u_ref
+  const Eigen::VectorXd& get_u_ref() const {
+    return u_ref;
+  }
 };
 
 // x - ub  <= 0
