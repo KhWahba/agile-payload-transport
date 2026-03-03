@@ -7,42 +7,28 @@
 namespace dynoplan {
 
 void Options_trajopt::add_options(po::options_description &desc) {
-
-  set_from_boostop(desc, VAR_WITH_NAME(time_ref));
-  set_from_boostop(desc, VAR_WITH_NAME(time_weight));
-  set_from_boostop(desc, VAR_WITH_NAME(check_with_finite_diff));
-
-  set_from_boostop(desc, VAR_WITH_NAME(name));
-  set_from_boostop(desc, VAR_WITH_NAME(soft_control_bounds));
-  set_from_boostop(desc, VAR_WITH_NAME(rollout_warmstart));
   set_from_boostop(desc, VAR_WITH_NAME(u_bound_scale));
-  set_from_boostop(desc, VAR_WITH_NAME(interp));
-  set_from_boostop(desc, VAR_WITH_NAME(ref_x0));
   set_from_boostop(desc, VAR_WITH_NAME(collision_weight));
   set_from_boostop(desc, VAR_WITH_NAME(th_acceptnegstep));
   set_from_boostop(desc, VAR_WITH_NAME(states_reg));
   set_from_boostop(desc, VAR_WITH_NAME(init_reg));
-  set_from_boostop(desc, VAR_WITH_NAME(control_bounds));
   set_from_boostop(desc, VAR_WITH_NAME(max_iter));
-  set_from_boostop(desc, VAR_WITH_NAME(window_optimize));
-  set_from_boostop(desc, VAR_WITH_NAME(window_shift));
-  set_from_boostop(desc, VAR_WITH_NAME(solver_id));
-  set_from_boostop(desc, VAR_WITH_NAME(use_warmstart));
-  set_from_boostop(desc, VAR_WITH_NAME(use_finite_diff));
-  set_from_boostop(desc, VAR_WITH_NAME(k_linear));
-  set_from_boostop(desc, VAR_WITH_NAME(noise_level));
-  set_from_boostop(desc, VAR_WITH_NAME(k_contour));
-  set_from_boostop(desc, VAR_WITH_NAME(smooth_traj));
   set_from_boostop(desc, VAR_WITH_NAME(weight_goal));
-  set_from_boostop(desc, VAR_WITH_NAME(shift_repeat));
-  set_from_boostop(desc, VAR_WITH_NAME(solver_name));
-  set_from_boostop(desc, VAR_WITH_NAME(tsearch_max_rate));
-  set_from_boostop(desc, VAR_WITH_NAME(tsearch_min_rate));
-  set_from_boostop(desc, VAR_WITH_NAME(tsearch_num_check));
-  set_from_boostop(desc, VAR_WITH_NAME(welf_format));
-  set_from_boostop(desc, VAR_WITH_NAME(linear_search));
-  set_from_boostop(desc, VAR_WITH_NAME(track_reference));
-  set_from_boostop(desc, VAR_WITH_NAME(track_goal));
+  set_from_boostop(desc, VAR_WITH_NAME(th_stop));
+  set_from_boostop(desc, VAR_WITH_NAME(policy_control_tracking_weight));
+  set_from_boostop(desc, VAR_WITH_NAME(ref_state_tracking_weight));
+  set_from_boostop(desc, VAR_WITH_NAME(planner_ref_control_tracking_weight));
+  set_from_boostop(desc, VAR_WITH_NAME(policy_ref_control_tracking_weight));
+  set_from_boostop(desc, VAR_WITH_NAME(goal_control_regularization_weight));
+  set_from_boostop(desc, VAR_WITH_NAME(solve_every_k_steps));
+  set_from_boostop(desc, VAR_WITH_NAME(nmpc_mode));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_enable));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_start_s));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_duration_s));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_force_x));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_force_y));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_force_z));
+  set_from_boostop(desc, VAR_WITH_NAME(disturbance_payload_mass));
 }
 
 void Options_trajopt::read_from_yaml(const char *file) {
@@ -52,44 +38,28 @@ void Options_trajopt::read_from_yaml(const char *file) {
 }
 
 void Options_trajopt::__read_from_node(const YAML::Node &node) {
-
-  set_from_yaml(node, VAR_WITH_NAME(time_ref));
-  set_from_yaml(node, VAR_WITH_NAME(time_weight));
-  set_from_yaml(node, VAR_WITH_NAME(check_with_finite_diff));
-
-  set_from_yaml(node, VAR_WITH_NAME(name));
-  set_from_yaml(node, VAR_WITH_NAME(soft_control_bounds));
-  set_from_yaml(node, VAR_WITH_NAME(noise_level));
-  set_from_yaml(node, VAR_WITH_NAME(welf_format));
-  set_from_yaml(node, VAR_WITH_NAME(rollout_warmstart));
   set_from_yaml(node, VAR_WITH_NAME(u_bound_scale));
-  set_from_yaml(node, VAR_WITH_NAME(interp));
-  set_from_yaml(node, VAR_WITH_NAME(ref_x0));
   set_from_yaml(node, VAR_WITH_NAME(collision_weight));
   set_from_yaml(node, VAR_WITH_NAME(th_acceptnegstep));
   set_from_yaml(node, VAR_WITH_NAME(states_reg));
   set_from_yaml(node, VAR_WITH_NAME(init_reg));
-  set_from_yaml(node, VAR_WITH_NAME(solver_name));
-  set_from_yaml(node, VAR_WITH_NAME(solver_id));
-  set_from_yaml(node, VAR_WITH_NAME(use_warmstart));
-  set_from_yaml(node, VAR_WITH_NAME(control_bounds));
-  set_from_yaml(node, VAR_WITH_NAME(k_linear));
-  set_from_yaml(node, VAR_WITH_NAME(k_contour));
+  set_from_yaml(node, VAR_WITH_NAME(th_stop));
   set_from_yaml(node, VAR_WITH_NAME(max_iter));
-  set_from_yaml(node, VAR_WITH_NAME(window_optimize));
-  set_from_yaml(node, VAR_WITH_NAME(window_shift));
-  set_from_yaml(node, VAR_WITH_NAME(max_mpc_iterations));
-  set_from_yaml(node, VAR_WITH_NAME(debug_file_name));
   set_from_yaml(node, VAR_WITH_NAME(weight_goal));
-  set_from_yaml(node, VAR_WITH_NAME(collision_weight));
-  set_from_yaml(node, VAR_WITH_NAME(smooth_traj));
-  set_from_yaml(node, VAR_WITH_NAME(shift_repeat));
-  set_from_yaml(node, VAR_WITH_NAME(tsearch_max_rate));
-  set_from_yaml(node, VAR_WITH_NAME(tsearch_min_rate));
-  set_from_yaml(node, VAR_WITH_NAME(tsearch_num_check));
-  set_from_yaml(node, VAR_WITH_NAME(linear_search));
-  set_from_yaml(node, VAR_WITH_NAME(track_reference));
-  set_from_yaml(node, VAR_WITH_NAME(track_goal));
+  set_from_yaml(node, VAR_WITH_NAME(policy_control_tracking_weight));
+  set_from_yaml(node, VAR_WITH_NAME(ref_state_tracking_weight));
+  set_from_yaml(node, VAR_WITH_NAME(planner_ref_control_tracking_weight));
+  set_from_yaml(node, VAR_WITH_NAME(policy_ref_control_tracking_weight));
+  set_from_yaml(node, VAR_WITH_NAME(goal_control_regularization_weight));
+  set_from_yaml(node, VAR_WITH_NAME(solve_every_k_steps));
+  set_from_yaml(node, VAR_WITH_NAME(nmpc_mode));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_enable));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_start_s));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_duration_s));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_force_x));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_force_y));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_force_z));
+  set_from_yaml(node, VAR_WITH_NAME(disturbance_payload_mass));
 }
 
 void Options_trajopt::read_from_yaml(YAML::Node &node) {
@@ -103,47 +73,28 @@ void Options_trajopt::read_from_yaml(YAML::Node &node) {
 
 void Options_trajopt::print(std::ostream &out, const std::string &be,
                             const std::string &af) const {
-
-  out << be << STR(time_ref, af) << std::endl;
-  out << be << STR(time_weight, af) << std::endl;
-  out << be << STR(check_with_finite_diff, af) << std::endl;
-
-
-  out << be << STR(name, af) << std::endl;
-  out << be << STR(shift_repeat, af) << std::endl;
-  out << be << STR(soft_control_bounds, af) << std::endl;
-  out << be << STR(welf_format, af) << std::endl;
   out << be << STR(u_bound_scale, af) << std::endl;
-  out << be << STR(interp, af) << std::endl;
-  out << be << STR(ref_x0, af) << std::endl;
+  out << be << STR(collision_weight, af) << std::endl;
   out << be << STR(th_acceptnegstep, af) << std::endl;
   out << be << STR(states_reg, af) << std::endl;
-  out << be << STR(solver_name, af) << std::endl;
-  out << be << STR(CALLBACKS, af) << std::endl;
-  out << be << STR(solver_id, af) << std::endl;
-  out << be << STR(use_finite_diff, af) << std::endl;
-  out << be << STR(use_warmstart, af) << std::endl;
-  out << be << STR(control_bounds, af) << std::endl;
   out << be << STR(th_stop, af) << std::endl;
   out << be << STR(init_reg, af) << std::endl;
-  out << be << STR(th_acceptnegstep, af) << std::endl;
-  out << be << STR(noise_level, af) << std::endl;
   out << be << STR(max_iter, af) << std::endl;
-  out << be << STR(window_optimize, af) << std::endl;
-  out << be << STR(window_shift, af) << std::endl;
-  out << be << STR(max_mpc_iterations, af) << std::endl;
-  out << be << STR(debug_file_name, af) << std::endl;
-  out << be << STR(k_linear, af) << std::endl;
-  out << be << STR(k_contour, af) << std::endl;
   out << be << STR(weight_goal, af) << std::endl;
-  out << be << STR(collision_weight, af) << std::endl;
-  out << be << STR(smooth_traj, af) << std::endl;
-
-  out << be << STR(tsearch_max_rate, af) << std::endl;
-  out << be << STR(tsearch_min_rate, af) << std::endl;
-  out << be << STR(tsearch_num_check, af) << std::endl;
-  out << be << STR(linear_search, af) << std::endl;
-  out << be << STR(track_reference, af) << std::endl;
+  out << be << STR(policy_control_tracking_weight, af) << std::endl;
+  out << be << STR(ref_state_tracking_weight, af) << std::endl;
+  out << be << STR(planner_ref_control_tracking_weight, af) << std::endl;
+  out << be << STR(policy_ref_control_tracking_weight, af) << std::endl;
+  out << be << STR(goal_control_regularization_weight, af) << std::endl;
+  out << be << STR(solve_every_k_steps, af) << std::endl;
+  out << be << STR(nmpc_mode, af) << std::endl;
+  out << be << STR(disturbance_enable, af) << std::endl;
+  out << be << STR(disturbance_start_s, af) << std::endl;
+  out << be << STR(disturbance_duration_s, af) << std::endl;
+  out << be << STR(disturbance_force_x, af) << std::endl;
+  out << be << STR(disturbance_force_y, af) << std::endl;
+  out << be << STR(disturbance_force_z, af) << std::endl;
+  out << be << STR(disturbance_payload_mass, af) << std::endl;
 }
 
 void PrintVariableMap(const boost::program_options::variables_map &vm,

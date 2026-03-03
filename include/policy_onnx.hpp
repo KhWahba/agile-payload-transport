@@ -11,15 +11,24 @@ namespace dynobench {
 class Model_robot;  // forward decl
 }
 
-class BCPolicyOnnx {
+class PolicyOnnx {
 public:
-  // onnx_path should point to bc_policy.onnx (bc_policy.onnx.data must sit next to it)
-  explicit BCPolicyOnnx(const std::string& onnx_path,
+  // onnx_path should point to exported policy ONNX file.
+  explicit PolicyOnnx(const std::string& onnx_path,
                         int intra_threads = 1);
 
   // Predict ONE action given (x, u_prev). Both in physical units.
+  // Only valid for 2-input models with 1-step output.
   Eigen::VectorXd predict_one(const Eigen::VectorXd& x,
                               const Eigen::VectorXd& u_prev);
+
+  // Predict a flattened chunk [H*nu] from observation x.
+  // Works for single-input chunk models. Falls back to iterative rollout-style
+  // prediction if the ONNX model is 2-input one-step policy.
+  Eigen::VectorXd predict_chunk(const Eigen::VectorXd& x,
+                                const Eigen::VectorXd& u_prev,
+                                int horizon,
+                                int nu);
 
   // Rollout N steps:
   // - inputs: N, model (for step), x0, u_prev (in/out), optional clipping
@@ -34,6 +43,10 @@ public:
       double u_clip_min = -1e30,
       double u_clip_max =  1e30);
 
+  bool is_chunk_model() const { return input_count_ == 1; }
+  bool is_autoregressive_model() const { return input_count_ >= 2; }
+  int output_dim() const { return output_dim_; }
+
 private:
   Ort::Env env_;
   Ort::SessionOptions session_options_;
@@ -43,4 +56,6 @@ private:
   std::string x_name_;
   std::string up_name_;
   std::string y_name_;
+  std::size_t input_count_ = 0;
+  int output_dim_ = -1;
 };

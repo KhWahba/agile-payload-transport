@@ -1,0 +1,11 @@
+init_file: ../envs/zero_goal/planner/result_dbcbs_opt.yaml
+ref_file: ../envs/zero_goal/planner/result_dbcbs_opt.yaml
+env_file: ../envs/zero_goal/env.yaml
+models_dir: /home/khaledwahba94/imitation-agile-payload-manipulation/deps/agile-payload-transport/envs/zero_goal/models_patched
+results_path: ../envs/zero_goal/nmpc_result_track_reference.yaml
+repeats: 1
+views: ["diag", "front"]
+video_prefix: ../envs/zero_goal/media/zero_goal_reference
+view_ref: true
+optimize: true
+visualize: true

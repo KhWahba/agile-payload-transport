@@ -6,10 +6,10 @@ project(
   LANGUAGES CXX)
 
 # MuJoCo
-set(MJ_ROOT "$ENV{HOME}/inria/agile-payload-transport/deps/mujoco-3.3.6")
+set(MJ_ROOT "$ENV{HOME}/imitation-agile-payload-manipulation/deps/pc-dbCBS/deps/mujoco-3.3.6")
 
 # ONNX Runtime (CPU)
-set(ONNXRUNTIME_ROOT "/opt/onnxruntime" CACHE PATH "ONNX Runtime root directory")
+set(ONNXRUNTIME_ROOT "$ENV{HOME}/imitation-agile-payload-manipulation/deps/agile-payload-transport/deps/onnxruntime" CACHE PATH "ONNX Runtime root directory")
 
 find_package(Boost REQUIRED COMPONENTS program_options serialization
                                        stacktrace_basic)
@@ -66,23 +66,23 @@ target_link_libraries(
          mujoco::mujoco)
 
 
-# ---- BC Policy (ONNX Runtime) ----
-add_library(bc_policy_onnx
-  ./src/bc_policy_onnx.cpp
+# ---- Policy ONNX Runtime wrapper ----
+add_library(policy_onnx
+  ./src/policy_onnx.cpp
 )
 
 target_include_directories(
-  bc_policy_onnx
+  policy_onnx
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          ${ONNXRUNTIME_ROOT}/include
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_directories(bc_policy_onnx PUBLIC ${ONNXRUNTIME_ROOT}/lib)
+target_link_directories(policy_onnx PUBLIC ${ONNXRUNTIME_ROOT}/lib)
 
 target_link_libraries(
-  bc_policy_onnx
+  policy_onnx
   PUBLIC Eigen3::Eigen
   PRIVATE onnxruntime
 )
@@ -90,16 +90,24 @@ target_link_libraries(
 
 add_executable(nmpc_mujoco ./src/nmpc_mujoco.cpp)
 
+add_library(nmpc_controller
+  ./src/nmpc_controller.cpp
+)
 
 add_library(
-  optimization
-  ./src/ocp.cpp ./src/options.cpp
-  ./src/croco_models.cpp ./src/generate_ocp.cpp
-  ./src/opt_simulate_mujoco.cpp)
-
+  nmpc_core
+  ./src/croco_models.cpp
+  ./src/options.cpp
+)
 
 target_include_directories(
-  optimization
+  nmpc_controller
+  PUBLIC $<INSTALL_INTERFACE:include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_include_directories(
+  nmpc_core
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          ${CROCODDYL_INCLUDE_DIRS}
@@ -109,20 +117,21 @@ target_include_directories(
   nmpc_mujoco
   PUBLIC $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         ${CROCODDYL_INCLUDE_DIRS}
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 
 target_link_libraries(
-optimization
+nmpc_core
 PUBLIC Eigen3::Eigen dynobench::dynobench
 PRIVATE ${CROCODDYL_LIBRARIES} fcl yaml-cpp Boost::program_options
-        Boost::serialization libipopt.so)
+        Boost::serialization)
 
 target_link_libraries(
-nmpc_mujoco
+nmpc_controller
+PUBLIC policy_onnx
 PRIVATE ${CROCODDYL_LIBRARIES}
-        optimization
-        bc_policy_onnx
+        nmpc_core
         Eigen3::Eigen
         dynobench::dynobench
         fcl
@@ -130,5 +139,8 @@ PRIVATE ${CROCODDYL_LIBRARIES}
         Boost::program_options
         Boost::serialization)
 
-
-
+target_link_libraries(
+nmpc_mujoco
+PRIVATE ${CROCODDYL_LIBRARIES}
+        Eigen3::Eigen
+        nmpc_controller)
