@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,10 @@ class NmpcController {
 
   // Run closed-loop NMPC for max_steps_ and store stitched trajectory in solution().
   void run();
+  // Convenience wrapper for Python/file-based workflows.
+  void run_with_overrides(const std::string &mode,
+                          const std::string &out_yaml,
+                          const std::string &out_timing_json);
   // Optional visualization pass based on prob_file rendering settings.
   void maybe_visualize();
 
@@ -59,6 +64,11 @@ class NmpcController {
   void prepare_common_warm_start(int k, bool allow_init_bootstrap);
   // Fill warm_start_N_.states by rolling model from current measured state.
   void rollout_warm_start_states_from_actions();
+  // Build policy learner-features vector (must match scripts/payload_env.py).
+  Eigen::VectorXd build_policy_features(const Eigen::VectorXd &state) const;
+  void write_policy_debug_step(int k, bool did_solve, const Eigen::VectorXd &x_before,
+                               const Eigen::VectorXd &u_applied, const Eigen::VectorXd &x_after,
+                               double goal_distance);
   // Update per-step references/weights and x0 in the already built problem.
   void update_problem_references();
   // Solve using cached solver + cached problem with updated warm-start.
@@ -86,6 +96,8 @@ class NmpcController {
   std::string models_dir_abs_;
   std::string results_path_;
   std::string video_prefix_;
+  std::string timing_output_path_override_;
+  std::string last_timing_output_path_;
 
   bool use_policy_onnx_ = false;
   std::string policy_onnx_path_;
@@ -93,6 +105,10 @@ class NmpcController {
   double policy_u_clip_min_ = -1e30;
   double policy_u_clip_max_ = 1e30;
   int policy_threads_ = 1;
+  double planner_act_low_ = 0.0;
+  double planner_act_high_ = 1.4;
+  bool debug_policy_loop_ = false;
+  std::string debug_policy_path_;
   double control_noise_ = 1e-3;
   double fail_threshold_ = 5.0;
   double goal_tol_ = 0.05;
@@ -134,13 +150,23 @@ class NmpcController {
   dynobench::Trajectory last_solved_window_;
 
   Eigen::VectorXd u_prev_exec_;
+  Eigen::VectorXd prev_action_policy_;
+  Eigen::VectorXd act_mid_;
+  Eigen::VectorXd act_half_;
+  Eigen::VectorXd last_policy_features_;
+  Eigen::VectorXd last_policy_chunk_raw_;
+  std::size_t last_policy_horizon_ = 0;
   Eigen::VectorXd x_init_;
   int k_goal_ = 0;
   std::size_t nx_ = 0;
   std::size_t nu_ = 0;
+  std::size_t n_bodies_ = 0;
+  std::size_t n_quads_ = 0;
   std::size_t planned_window_idx_ = 0;
   bool have_valid_window_ = false;
   bool init_bootstrap_used_ = false;
+  bool warm_start_is_feasible_ = false;  // true when ws states come from rollout
+  std::ofstream debug_policy_stream_;
 };
 
 }  // namespace dynoplan

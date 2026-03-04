@@ -27,6 +27,17 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 
+option(BUILD_NMPC_PYTHON_BINDINGS "Build NMPC Python bindings" ON)
+
+if(BUILD_NMPC_PYTHON_BINDINGS)
+  set(PYBIND11_VENDOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pc-dbCBS/deps/dynoplan/dynobench/deps/pybind11")
+  if(EXISTS "${PYBIND11_VENDOR_DIR}/CMakeLists.txt")
+    add_subdirectory(${PYBIND11_VENDOR_DIR} ${CMAKE_BINARY_DIR}/pybind11_build EXCLUDE_FROM_ALL)
+  else()
+    find_package(pybind11 CONFIG REQUIRED)
+  endif()
+endif()
+
 
 add_library(
   dynobench
@@ -70,6 +81,7 @@ target_link_libraries(
 add_library(policy_onnx
   ./src/policy_onnx.cpp
 )
+set_property(TARGET policy_onnx PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(
   policy_onnx
@@ -99,6 +111,9 @@ add_library(
   ./src/croco_models.cpp
   ./src/options.cpp
 )
+
+set_property(TARGET nmpc_core PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET nmpc_controller PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(
   nmpc_controller
@@ -144,3 +159,23 @@ nmpc_mujoco
 PRIVATE ${CROCODDYL_LIBRARIES}
         Eigen3::Eigen
         nmpc_controller)
+
+# ---- Jacobian comparison test ----
+add_executable(test_jacobian_comparison tests/test_jacobian_comparison.cpp)
+target_include_directories(
+  test_jacobian_comparison
+  PUBLIC $<INSTALL_INTERFACE:include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_jacobian_comparison PRIVATE dynobench::dynobench Eigen3::Eigen)
+
+if(BUILD_NMPC_PYTHON_BINDINGS)
+  pybind11_add_module(nmpc_controller_py MODULE ./src/py_nmpc_controller.cpp)
+  target_include_directories(
+    nmpc_controller_py
+    PUBLIC $<INSTALL_INTERFACE:include>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+           ${CROCODDYL_INCLUDE_DIRS}
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(nmpc_controller_py PRIVATE nmpc_controller)
+endif()

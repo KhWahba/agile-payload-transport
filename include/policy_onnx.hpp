@@ -46,6 +46,7 @@ public:
   bool is_chunk_model() const { return input_count_ == 1; }
   bool is_autoregressive_model() const { return input_count_ >= 2; }
   int output_dim() const { return output_dim_; }
+  int input_dim() const { return input_dim_; }
 
 private:
   Ort::Env env_;
@@ -57,5 +58,6 @@ private:
   std::string up_name_;
   std::string y_name_;
   std::size_t input_count_ = 0;
+  int input_dim_ = -1;
   int output_dim_ = -1;
 };
