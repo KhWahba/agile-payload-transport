@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 #include <vector>
 
 #include "croco_models.hpp"
@@ -27,6 +28,13 @@ using dynobench::Model_MujocoQuad;
 using dynobench::Model_MujocoQuadsPayload;
 
 namespace {
+
+fs::path resolve_with_base(const fs::path &base, const std::string &value) {
+  if (value.empty()) return {};
+  fs::path p(value);
+  if (p.is_absolute()) return p;
+  return fs::weakly_canonical(base / p);
+}
 
 void repaint_model_geoms(mjModel* m, float rr, float gg, float bb, float aa) {
   for (int i = 0; i < m->ngeom; ++i) {
@@ -68,6 +76,62 @@ void apply_camera_preset(mjvCamera& cam, const Eigen::Vector3d& env_center,
     cam.elevation = -35;
     cam.distance = base_dist;
   }
+}
+
+Eigen::Vector4d quat_xyzw_mul(const Eigen::Vector4d &q1, const Eigen::Vector4d &q2) {
+  const double x1 = q1(0), y1 = q1(1), z1 = q1(2), w1 = q1(3);
+  const double x2 = q2(0), y2 = q2(1), z2 = q2(2), w2 = q2(3);
+  Eigen::Vector4d out;
+  out << (w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2),
+      (w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2),
+      (w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2),
+      (w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2);
+  return out;
+}
+
+Eigen::Vector4d quat_xyzw_inv(const Eigen::Vector4d &q) {
+  const double n2 = q.squaredNorm();
+  if (n2 <= 1e-12) {
+    return Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
+  }
+  return Eigen::Vector4d(-q(0), -q(1), -q(2), q(3)) / n2;
+}
+
+void json_write_vec(std::ostream &os, const Eigen::VectorXd &v) {
+  os << "[";
+  for (Eigen::Index i = 0; i < v.size(); ++i) {
+    if (i) os << ",";
+    os << v(i);
+  }
+  os << "]";
+}
+
+void json_write_traj_vec(std::ostream &os, const std::vector<Eigen::VectorXd> &xs) {
+  os << "[";
+  for (std::size_t i = 0; i < xs.size(); ++i) {
+    if (i) os << ",";
+    json_write_vec(os, xs[i]);
+  }
+  os << "]";
+}
+
+void json_write_payload_pv(std::ostream &os, const std::vector<Eigen::VectorXd> &xs) {
+  os << "[";
+  for (std::size_t i = 0; i < xs.size(); ++i) {
+    if (i) os << ",";
+    const auto &x = xs[i];
+    os << "[";
+    if (x.size() >= 24) {
+      os << x(0) << "," << x(1) << "," << x(2) << ","
+         << x(21) << "," << x(22) << "," << x(23);
+    } else if (x.size() >= 3) {
+      os << x(0) << "," << x(1) << "," << x(2) << ",0,0,0";
+    } else {
+      os << "0,0,0,0,0,0";
+    }
+    os << "]";
+  }
+  os << "]";
 }
 
 template <class ModelT>
@@ -239,6 +303,76 @@ void NmpcController::rollout_warm_start_states_from_actions() {
   }
 }
 
+Eigen::VectorXd NmpcController::build_policy_features(const Eigen::VectorXd &state) const {
+  // Matches scripts/payload_env.py::_get_learner_features exactly:
+  // [payload_pos_err(3), payload_vel(3), per-quad(12), prev_action(nu)]
+  if (n_bodies_ == 0 || n_quads_ + 1 != n_bodies_) {
+    throw std::runtime_error("build_policy_features: invalid body/quad metadata");
+  }
+  if (state.size() != static_cast<Eigen::Index>(nx_)) {
+    throw std::runtime_error("build_policy_features: state has wrong size");
+  }
+  if (problem_->goal.size() != static_cast<Eigen::Index>(nx_)) {
+    throw std::runtime_error("build_policy_features: goal has wrong size");
+  }
+
+  const Eigen::VectorXd &goal = problem_->goal;
+  const std::size_t n = n_bodies_;
+  const std::size_t poses_dim = 7 * n;
+  const std::size_t vels_dim = 6 * n;
+  if (state.size() != static_cast<Eigen::Index>(poses_dim + vels_dim)) {
+    throw std::runtime_error("build_policy_features: expected poses+vels layout (13*n)");
+  }
+
+  std::vector<double> feat;
+  feat.reserve(6 + n_quads_ * 12 + nu_);
+
+  const auto pL = state.segment<3>(0);
+  const auto pL_goal = goal.segment<3>(0);
+  const auto vL = state.segment<3>(static_cast<Eigen::Index>(poses_dim + 0));
+
+  // payload position error and payload linear velocity
+  for (int i = 0; i < 3; ++i) feat.push_back(pL(i) - pL_goal(i));
+  for (int i = 0; i < 3; ++i) feat.push_back(vL(i));
+
+  // Goal velocities are zero by design in Python learner features
+  for (std::size_t qi = 0; qi < n_quads_; ++qi) {
+    const std::size_t body = 1 + qi;
+    const std::size_t pose_base = 7 * body;
+    const std::size_t vel_base = 6 * body;
+
+    const auto p_i = state.segment<3>(static_cast<Eigen::Index>(pose_base + 0));
+    const auto q_i = state.segment<4>(static_cast<Eigen::Index>(pose_base + 3));   // xyzw
+    const auto v_i = state.segment<3>(static_cast<Eigen::Index>(poses_dim + vel_base + 0));
+    const auto w_i = state.segment<3>(static_cast<Eigen::Index>(poses_dim + vel_base + 3));
+
+    const auto p_i_goal = goal.segment<3>(static_cast<Eigen::Index>(pose_base + 0));
+    const auto q_i_goal = goal.segment<4>(static_cast<Eigen::Index>(pose_base + 3)); // xyzw
+
+    const Eigen::Vector3d e_p_rel = (p_i - pL) - (p_i_goal - pL_goal);
+    const Eigen::Vector3d e_v_rel = (v_i - vL); // goal-relative velocities are zero
+
+    Eigen::Vector4d q_err = quat_xyzw_mul(quat_xyzw_inv(q_i_goal), q_i);
+    if (q_err(3) < 0.0) q_err = -q_err;
+    const Eigen::Vector3d e_q = q_err.head<3>();
+    const Eigen::Vector3d e_w = w_i; // goal angular velocities are zero
+
+    for (int i = 0; i < 3; ++i) feat.push_back(e_p_rel(i));
+    for (int i = 0; i < 3; ++i) feat.push_back(e_v_rel(i));
+    for (int i = 0; i < 3; ++i) feat.push_back(e_q(i));
+    for (int i = 0; i < 3; ++i) feat.push_back(e_w(i));
+  }
+
+  if (prev_action_policy_.size() != static_cast<Eigen::Index>(nu_)) {
+    throw std::runtime_error("build_policy_features: prev_action_policy_ has wrong size");
+  }
+  for (std::size_t i = 0; i < nu_; ++i) feat.push_back(prev_action_policy_(static_cast<Eigen::Index>(i)));
+
+  Eigen::VectorXd out(static_cast<Eigen::Index>(feat.size()));
+  for (std::size_t i = 0; i < feat.size(); ++i) out(static_cast<Eigen::Index>(i)) = feat[i];
+  return out;
+}
+
 void NmpcController::update_problem_references() {
   if (!problem_built_) {
     throw std::runtime_error("update_problem_references called before build_problem_once");
@@ -382,7 +516,26 @@ NmpcController::NmpcController(const std::string &prob_file, const std::string &
   setup_from_files(prob_file, cfg_file);
 }
 
+void NmpcController::run_with_overrides(const std::string &mode,
+                                        const std::string &out_yaml,
+                                        const std::string &out_timing_json) {
+  if (!mode.empty()) {
+    mode_ = parse_mode(mode);
+    options_trajopt_.nmpc_mode = mode;
+  }
+  if (!out_yaml.empty()) {
+    results_path_ = out_yaml;
+  }
+  timing_output_path_override_ = out_timing_json;
+  run();
+}
+
 void NmpcController::setup_from_files(const std::string &prob_file, const std::string &cfg_file) {
+  const fs::path prob_path = fs::absolute(prob_file);
+  const fs::path cfg_path = fs::absolute(cfg_file);
+  const fs::path prob_dir = prob_path.parent_path();
+  const fs::path cfg_dir = cfg_path.parent_path();
+
   YAML::Node problem_file = YAML::LoadFile(prob_file);
   YAML::Node opt_file = YAML::LoadFile(cfg_file);
 
@@ -403,9 +556,13 @@ void NmpcController::setup_from_files(const std::string &prob_file, const std::s
   use_policy_onnx_ = opt_file["use_policy_onnx"] ? opt_file["use_policy_onnx"].as<bool>() : false;
   policy_onnx_path_ = opt_file["policy_onnx_path"] ? opt_file["policy_onnx_path"].as<std::string>() : "";
   policy_rollout_as_ref_ = opt_file["policy_rollout_as_ref"] ? opt_file["policy_rollout_as_ref"].as<bool>() : true;
-  policy_u_clip_min_ = opt_file["policy_u_clip_min"] ? opt_file["policy_u_clip_min"].as<double>() : -1e30;
-  policy_u_clip_max_ = opt_file["policy_u_clip_max"] ? opt_file["policy_u_clip_max"].as<double>() : 1e30;
+  policy_u_clip_min_ = opt_file["policy_u_clip_min"] ? opt_file["policy_u_clip_min"].as<double>() : 0.0;
+  policy_u_clip_max_ = opt_file["policy_u_clip_max"] ? opt_file["policy_u_clip_max"].as<double>() : 1.4;
   policy_threads_ = opt_file["policy_threads"] ? opt_file["policy_threads"].as<int>() : 1;
+  planner_act_low_ = opt_file["planner_act_low"] ? opt_file["planner_act_low"].as<double>() : 0.0;
+  planner_act_high_ = opt_file["planner_act_high"] ? opt_file["planner_act_high"].as<double>() : 1.4;
+  debug_policy_loop_ = opt_file["debug_policy_loop"] ? opt_file["debug_policy_loop"].as<bool>() : false;
+  debug_policy_path_ = opt_file["debug_policy_path"] ? opt_file["debug_policy_path"].as<std::string>() : "";
   control_noise_ = opt_file["control_noise"] ? opt_file["control_noise"].as<double>() : 1e-3;
   fail_threshold_ = opt_file["fail_threshold"] ? opt_file["fail_threshold"].as<double>() : 5.0;
   goal_tol_ = opt_file["goal_tol"] ? opt_file["goal_tol"].as<double>() : 0.05;
@@ -429,14 +586,26 @@ void NmpcController::setup_from_files(const std::string &prob_file, const std::s
   if (env_file_.empty()) {
     throw std::runtime_error("env_file is required in prob_file");
   }
+  env_file_ = resolve_with_base(prob_dir, env_file_).string();
+  if (!init_file_.empty()) init_file_ = resolve_with_base(prob_dir, init_file_).string();
+  if (!ref_file_.empty()) ref_file_ = resolve_with_base(prob_dir, ref_file_).string();
+  if (!results_path_.empty()) results_path_ = resolve_with_base(prob_dir, results_path_).string();
+  if (!video_prefix_.empty()) video_prefix_ = resolve_with_base(prob_dir, video_prefix_).string();
+  if (!policy_onnx_path_.empty()) policy_onnx_path_ = resolve_with_base(cfg_dir, policy_onnx_path_).string();
+  if (!debug_policy_path_.empty()) debug_policy_path_ = resolve_with_base(cfg_dir, debug_policy_path_).string();
 
   fs::path build_dir = fs::current_path();
   fs::path models_path_cfg(models_dir_);
   if (models_path_cfg.is_absolute()) {
     models_dir_abs_ = models_path_cfg.string();
   } else {
-    std::string models_dir_path = build_dir.parent_path().string() + "/" + models_dir_ + "/";
-    models_dir_abs_ = fs::absolute(models_dir_path).string();
+    const fs::path from_prob = prob_dir / models_path_cfg;
+    if (fs::exists(from_prob)) {
+      models_dir_abs_ = fs::weakly_canonical(from_prob).string();
+    } else {
+      std::string models_dir_path = build_dir.parent_path().string() + "/" + models_dir_ + "/";
+      models_dir_abs_ = fs::absolute(models_dir_path).string();
+    }
   }
   if (!models_dir_abs_.empty() && models_dir_abs_.back() != '/') {
     models_dir_abs_ += "/";
@@ -454,13 +623,25 @@ void NmpcController::setup_from_files(const std::string &prob_file, const std::s
 
   nx_ = static_cast<std::size_t>(robot_->nx);
   nu_ = static_cast<std::size_t>(robot_->nu);
+  n_bodies_ = nx_ / 13;
+  n_quads_ = (n_bodies_ > 0) ? (n_bodies_ - 1) : 0;
   u_prev_exec_ = Eigen::VectorXd::Zero(nu_);
+  prev_action_policy_ = Eigen::VectorXd::Zero(nu_);
+  act_mid_ = Eigen::VectorXd::Constant(nu_, 0.5 * (planner_act_high_ + planner_act_low_));
+  act_half_ = Eigen::VectorXd::Constant(nu_, 0.5 * (planner_act_high_ - planner_act_low_));
 
   if (use_policy_onnx_ || mode_ == NmpcMode::TrackReferencePolicy) {
     if (policy_onnx_path_.empty()) {
       throw std::runtime_error("track_reference_policy mode requires policy_onnx_path");
     }
     policy_onnx_ = std::make_unique<PolicyOnnx>(policy_onnx_path_, policy_threads_);
+    const int expect_dim = 6 + static_cast<int>(n_quads_ * 12) + static_cast<int>(nu_);
+    const int model_in = policy_onnx_->input_dim();
+    if (model_in > 0 && model_in != expect_dim) {
+      throw std::runtime_error(
+          "Policy ONNX input dim mismatch: model expects " + std::to_string(model_in) +
+          " but NMPC features are " + std::to_string(expect_dim));
+    }
   }
 
   if (!init_file_.empty()) {
@@ -477,19 +658,42 @@ void NmpcController::prepare_window_for_step(int k) {
   switch (mode_) {
     case NmpcMode::TrackReferencePolicy: {
       // New chunk policy contract: output is [H*nu].
+      const Eigen::VectorXd obs_feat = build_policy_features(x_init_);
       Eigen::VectorXd flat =
-          policy_onnx_->predict_chunk(x_init_, u_prev_exec_, static_cast<int>(N_), static_cast<int>(nu_));
-      if (flat.size() != static_cast<Eigen::Index>(N_ * nu_)) {
-        throw std::runtime_error("PolicyChunk: ONNX output size mismatch, expected H*nu");
+          policy_onnx_->predict_chunk(obs_feat, prev_action_policy_, static_cast<int>(N_), static_cast<int>(nu_));
+      if (flat.size() % static_cast<Eigen::Index>(nu_) != 0) {
+        throw std::runtime_error(
+            "PolicyChunk: ONNX output size must be multiple of nu. got " +
+            std::to_string(flat.size()) + " and nu=" + std::to_string(nu_));
+      }
+      last_policy_features_ = obs_feat;
+      last_policy_chunk_raw_ = flat;
+      last_policy_horizon_ = static_cast<std::size_t>(flat.size() / static_cast<Eigen::Index>(nu_));
+      if (last_policy_horizon_ == 0) {
+        throw std::runtime_error("PolicyChunk: ONNX output horizon is zero");
       }
       warm_start_N_.actions.resize(N_);
-      for (std::size_t i = 0; i < N_; ++i) {
-        Eigen::VectorXd u = flat.segment(i * nu_, nu_);
+      const std::size_t fill_h = std::min<std::size_t>(N_, last_policy_horizon_);
+      for (std::size_t i = 0; i < fill_h; ++i) {
+        Eigen::VectorXd a = flat.segment(static_cast<Eigen::Index>(i * nu_), static_cast<Eigen::Index>(nu_));
+        // Policy predicts in normalized space [-1, 1].
+        for (std::size_t j = 0; j < nu_; ++j) {
+          const Eigen::Index jj = static_cast<Eigen::Index>(j);
+          a(jj) = std::min(std::max(a(jj), -1.0), 1.0);
+        }
+        // Map to planner control range [planner_act_low_, planner_act_high_].
+        Eigen::VectorXd u = a.cwiseProduct(act_half_) + act_mid_;
         for (std::size_t j = 0; j < nu_; ++j) {
           u(static_cast<Eigen::Index>(j)) =
               std::min(std::max(u(static_cast<Eigen::Index>(j)), policy_u_clip_min_), policy_u_clip_max_);
         }
         warm_start_N_.actions[i] = u;
+      }
+      if (fill_h < N_) {
+        const Eigen::VectorXd pad = warm_start_N_.actions[fill_h - 1];
+        for (std::size_t i = fill_h; i < N_; ++i) {
+          warm_start_N_.actions[i] = pad;
+        }
       }
       // Rollout warm-start states from measured x_init_ with policy controls.
       rollout_warm_start_states_from_actions();
@@ -498,6 +702,9 @@ void NmpcController::prepare_window_for_step(int k) {
       break;
     }
     case NmpcMode::TrackReferenceNmpcRefWarm: {
+      last_policy_features_.resize(0);
+      last_policy_chunk_raw_.resize(0);
+      last_policy_horizon_ = 0;
       if (ref_file_.empty()) {
         throw std::runtime_error("track_reference_nmpc_refwarm mode requires non-empty ref_file");
       }
@@ -508,6 +715,9 @@ void NmpcController::prepare_window_for_step(int k) {
       break;
     }
     case NmpcMode::TrackReferenceNmpcStandard: {
+      last_policy_features_.resize(0);
+      last_policy_chunk_raw_.resize(0);
+      last_policy_horizon_ = 0;
       prepare_common_warm_start(k, true);
       if (!ref_file_.empty()) {
         slice_window(ref_traj_N_, ref_traj_, k, N_, robot_->u_0, problem_->goal);
@@ -519,6 +729,9 @@ void NmpcController::prepare_window_for_step(int k) {
     }
     case NmpcMode::TrackLinearHover:
     case NmpcMode::TrackGoal: {
+      last_policy_features_.resize(0);
+      last_policy_chunk_raw_.resize(0);
+      last_policy_horizon_ = 0;
       prepare_common_warm_start(k, true);
       ref_traj_N_.num_time_steps = N_;
       ref_traj_N_.states.assign(N_ + 1, problem_->goal);
@@ -543,6 +756,7 @@ void NmpcController::apply_payload_disturbance(Eigen::VectorXd &xnext, int k) co
 NmpcStepInfo NmpcController::step_once(int k) {
   NmpcStepInfo info;
   const auto step_t0 = std::chrono::steady_clock::now();
+  const Eigen::VectorXd x_before = x_init_;
   const bool need_solve =
       (!have_valid_window_) || (planned_window_idx_ >= last_solved_window_.actions.size()) ||
       (static_cast<std::size_t>(k) % solve_every_k_steps_ == 0);
@@ -576,6 +790,12 @@ NmpcStepInfo NmpcController::step_once(int k) {
   sol_.states.push_back(xnext);
   sol_.actions.push_back(u);
   u_prev_exec_ = u;
+  for (std::size_t j = 0; j < nu_; ++j) {
+    const Eigen::Index jj = static_cast<Eigen::Index>(j);
+    const double denom = std::max(1e-9, act_half_(jj));
+    const double a = (u(jj) - act_mid_(jj)) / denom;
+    prev_action_policy_(jj) = std::min(std::max(a, -1.0), 1.0);
+  }
   x_init_ = xnext;
 
   info.goal_distance = robot_->distance(sol_.states.back(), problem_->goal);
@@ -589,6 +809,7 @@ NmpcStepInfo NmpcController::step_once(int k) {
   }
   const auto step_t1 = std::chrono::steady_clock::now();
   info.step_time_ms = std::chrono::duration<double, std::milli>(step_t1 - step_t0).count();
+  write_policy_debug_step(k, info.did_solve, x_before, u, xnext, info.goal_distance);
   return info;
 }
 
@@ -597,6 +818,10 @@ void NmpcController::run() {
   sol_.actions.clear();
   sol_.states.push_back(problem_->start);
   x_init_ = problem_->start;
+  prev_action_policy_.setZero();
+  last_policy_features_.resize(0);
+  last_policy_chunk_raw_.resize(0);
+  last_policy_horizon_ = 0;
   k_goal_ = 0;
   have_valid_window_ = false;
   planned_window_idx_ = 0;
@@ -612,6 +837,23 @@ void NmpcController::run() {
   step_hz_samples.reserve(max_steps_);
   solve_hz_samples.reserve(max_steps_);
   const auto run_t0 = std::chrono::steady_clock::now();
+
+  if (debug_policy_stream_.is_open()) {
+    debug_policy_stream_.close();
+  }
+  if (debug_policy_loop_) {
+    fs::path dbg_path = debug_policy_path_.empty()
+                            ? (fs::path(results_path_).parent_path() / (fs::path(results_path_).stem().string() + "_policy_debug.jsonl"))
+                            : fs::path(debug_policy_path_);
+    if (dbg_path.has_parent_path()) {
+      fs::create_directories(dbg_path.parent_path());
+    }
+    debug_policy_stream_.open(dbg_path, std::ios::out | std::ios::trunc);
+    if (!debug_policy_stream_) {
+      throw std::runtime_error("Failed to open debug_policy_path: " + dbg_path.string());
+    }
+    std::cout << "[nmpc] policy debug log: " << dbg_path.string() << "\n";
+  }
 
   if (!do_optimize_) return;
   for (int k = 0; k < static_cast<int>(max_steps_); ++k) {
@@ -686,7 +928,9 @@ void NmpcController::run() {
   const auto [solve_hz_mean_samples, solve_hz_std_samples] = mean_std(solve_hz_samples);
 
   fs::path timing_path = "nmpc_timing.json";
-  if (!results_path_.empty()) {
+  if (!timing_output_path_override_.empty()) {
+    timing_path = timing_output_path_override_;
+  } else if (!results_path_.empty()) {
     fs::path rp(results_path_);
     timing_path = rp.parent_path() / (rp.stem().string() + "_timing.json");
   }
@@ -716,8 +960,59 @@ void NmpcController::run() {
                << "  \"max_solve_time_ms\": " << max_solve_time_ms << ",\n"
                << "  \"run_hz\": " << run_hz << "\n"
                << "}\n";
+    last_timing_output_path_ = timing_path.string();
     std::cout << "Saved NMPC timing summary to: " << timing_path.string() << "\n";
   }
+  if (debug_policy_stream_.is_open()) {
+    debug_policy_stream_.close();
+  }
+}
+
+void NmpcController::write_policy_debug_step(int k, bool did_solve, const Eigen::VectorXd &x_before,
+                                             const Eigen::VectorXd &u_applied, const Eigen::VectorXd &x_after,
+                                             double goal_distance) {
+  if (!debug_policy_loop_ || !debug_policy_stream_) {
+    return;
+  }
+  debug_policy_stream_ << "{";
+  debug_policy_stream_ << "\"k\":" << k << ",";
+  debug_policy_stream_ << "\"mode\":\"" << options_trajopt_.nmpc_mode << "\",";
+  debug_policy_stream_ << "\"did_solve\":" << (did_solve ? "true" : "false") << ",";
+  debug_policy_stream_ << "\"nmpc_horizon\":" << N_ << ",";
+  debug_policy_stream_ << "\"policy_horizon\":" << last_policy_horizon_ << ",";
+  debug_policy_stream_ << "\"planned_window_idx\":" << planned_window_idx_ << ",";
+  debug_policy_stream_ << "\"solve_every_k_steps\":" << solve_every_k_steps_ << ",";
+  debug_policy_stream_ << "\"goal_distance\":" << goal_distance << ",";
+  debug_policy_stream_ << "\"x_before\":"; json_write_vec(debug_policy_stream_, x_before); debug_policy_stream_ << ",";
+  debug_policy_stream_ << "\"x_after\":"; json_write_vec(debug_policy_stream_, x_after); debug_policy_stream_ << ",";
+  debug_policy_stream_ << "\"u_applied\":"; json_write_vec(debug_policy_stream_, u_applied); debug_policy_stream_ << ",";
+  debug_policy_stream_ << "\"prev_action_policy\":"; json_write_vec(debug_policy_stream_, prev_action_policy_); debug_policy_stream_ << ",";
+  debug_policy_stream_ << "\"policy_features\":"; json_write_vec(debug_policy_stream_, last_policy_features_); debug_policy_stream_ << ",";
+  debug_policy_stream_ << "\"policy_chunk_raw\":"; json_write_vec(debug_policy_stream_, last_policy_chunk_raw_);
+  if (!warm_start_N_.actions.empty()) {
+    debug_policy_stream_ << ",\"warm_start_u0\":";
+    json_write_vec(debug_policy_stream_, warm_start_N_.actions.front());
+  }
+  if (!last_solved_window_.actions.empty()) {
+    debug_policy_stream_ << ",\"nmpc_u0\":";
+    json_write_vec(debug_policy_stream_, last_solved_window_.actions.front());
+  }
+  if (did_solve) {
+    debug_policy_stream_ << ",\"warm_start_actions_window\":";
+    json_write_traj_vec(debug_policy_stream_, warm_start_N_.actions);
+    debug_policy_stream_ << ",\"nmpc_actions_window\":";
+    json_write_traj_vec(debug_policy_stream_, last_solved_window_.actions);
+    debug_policy_stream_ << ",\"ref_actions_window\":";
+    json_write_traj_vec(debug_policy_stream_, ref_traj_N_.actions);
+
+    debug_policy_stream_ << ",\"warm_start_payload_pv_window\":";
+    json_write_payload_pv(debug_policy_stream_, warm_start_N_.states);
+    debug_policy_stream_ << ",\"nmpc_payload_pv_window\":";
+    json_write_payload_pv(debug_policy_stream_, last_solved_window_.states);
+    debug_policy_stream_ << ",\"ref_payload_pv_window\":";
+    json_write_payload_pv(debug_policy_stream_, ref_traj_N_.states);
+  }
+  debug_policy_stream_ << "}\n";
 }
 
 void NmpcController::maybe_visualize() {

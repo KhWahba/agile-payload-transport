@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <algorithm>
+#include <limits>
 
 PolicyOnnx::PolicyOnnx(const std::string& onnx_path, int intra_threads)
 : env_(ORT_LOGGING_LEVEL_WARNING, "policy_onnx"),
@@ -24,10 +25,28 @@ PolicyOnnx::PolicyOnnx(const std::string& onnx_path, int intra_threads)
   }
   y_name_ = session_.GetOutputNameAllocated(0, allocator_).get();
 
-  auto out_info = session_.GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo();
-  auto out_shape = out_info.GetShape();
-  if (out_shape.size() >= 2 && out_shape.back() > 0) {
-    output_dim_ = static_cast<int>(out_shape.back());
+  try {
+    auto in_info = session_.GetInputTypeInfo(0).GetTensorTypeAndShapeInfo();
+    auto in_shape = in_info.GetShape();
+    if (in_shape.size() >= 2 && in_shape.back() > 0 &&
+        in_shape.back() <= static_cast<int64_t>(std::numeric_limits<int>::max())) {
+      input_dim_ = static_cast<int>(in_shape.back());
+    }
+  } catch (const std::exception&) {
+    input_dim_ = -1;
+  }
+
+  try {
+    auto out_info = session_.GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo();
+    auto out_shape = out_info.GetShape();
+    if (out_shape.size() >= 2 && out_shape.back() > 0 &&
+        out_shape.back() <= static_cast<int64_t>(std::numeric_limits<int>::max())) {
+      output_dim_ = static_cast<int>(out_shape.back());
+    }
+  } catch (const std::exception&) {
+    // Some exported models have malformed/unsupported static shape metadata.
+    // Fall back to runtime-driven horizon*nu sizing.
+    output_dim_ = -1;
   }
 }
 
@@ -87,7 +106,12 @@ Eigen::VectorXd PolicyOnnx::predict_chunk(const Eigen::VectorXd& x,
     const char* out_names[] = {y_name_.c_str()};
     auto outputs = session_.Run(Ort::RunOptions{nullptr}, in_names, &x_tensor, 1, out_names, 1);
     float* y = outputs[0].GetTensorMutableData<float>();
-    const int dim = (output_dim_ > 0) ? output_dim_ : (horizon * nu);
+    auto out_info = outputs[0].GetTensorTypeAndShapeInfo();
+    const auto elem_count = static_cast<int>(out_info.GetElementCount());
+    if (elem_count <= 0) {
+      throw std::runtime_error("PolicyOnnx::predict_chunk got empty output tensor");
+    }
+    const int dim = elem_count;
     Eigen::VectorXd out(dim);
     for (int i = 0; i < dim; ++i) out[i] = static_cast<double>(y[i]);
     return out;
