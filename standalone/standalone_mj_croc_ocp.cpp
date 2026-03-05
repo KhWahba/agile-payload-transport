@@ -1,5 +1,6 @@
 #include <mujoco/mujoco.h>
 
+#include <crocoddyl/config.hh>
 #include <crocoddyl/core/action-base.hpp>
 #include <crocoddyl/core/optctrl/shooting.hpp>
 #include <crocoddyl/core/solvers/fddp.hpp>
@@ -9,7 +10,9 @@
 
 #include <Eigen/Core>
 
+#if CROCODDYL_MAJOR_VERSION < 3
 #include <boost/make_shared.hpp>
+#endif
 
 #include <array>
 #include <algorithm>
@@ -20,11 +23,28 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace fs = std::filesystem;
 
 namespace {
+
+#if CROCODDYL_MAJOR_VERSION >= 3
+template <typename T>
+using CrocPtr = std::shared_ptr<T>;
+template <typename T, typename... Args>
+CrocPtr<T> croc_make_shared(Args&&... args) {
+  return std::make_shared<T>(std::forward<Args>(args)...);
+}
+#else
+template <typename T>
+using CrocPtr = boost::shared_ptr<T>;
+template <typename T, typename... Args>
+CrocPtr<T> croc_make_shared(Args&&... args) {
+  return boost::make_shared<T>(std::forward<Args>(args)...);
+}
+#endif
 
 struct CliOptions {
   std::string problem_yaml;
@@ -182,12 +202,23 @@ class MujocoDiscreteActionModel final : public crocoddyl::ActionModelAbstract {
   MujocoDiscreteActionModel(mjModel* model, const Eigen::VectorXd& xref, const Eigen::VectorXd& uref,
                             const Eigen::VectorXd& q_diag, const Eigen::VectorXd& r_diag,
                             bool terminal = false)
+#if CROCODDYL_MAJOR_VERSION >= 3
       : crocoddyl::ActionModelAbstract(
-            boost::make_shared<crocoddyl::StateVector>(static_cast<std::size_t>(model->nq + model->nv)),
+            croc_make_shared<crocoddyl::StateVector>(static_cast<std::size_t>(model->nq + model->nv)),
+            static_cast<std::size_t>(model->nu),
+            1,
+            0,
+            0,
+            0,
+            0),
+#else
+      : crocoddyl::ActionModelAbstract(
+            croc_make_shared<crocoddyl::StateVector>(static_cast<std::size_t>(model->nq + model->nv)),
             static_cast<std::size_t>(model->nu),
             1,
             0,
             0),
+#endif
         model_(model),
         xref_(xref),
         uref_(uref),
@@ -208,13 +239,23 @@ class MujocoDiscreteActionModel final : public crocoddyl::ActionModelAbstract {
 
   ~MujocoDiscreteActionModel() override = default;
 
-  void calc(const boost::shared_ptr<crocoddyl::ActionDataAbstract>& data, const Eigen::Ref<const Eigen::VectorXd>& x,
+  void calc(const CrocPtr<crocoddyl::ActionDataAbstract>& data, const Eigen::Ref<const Eigen::VectorXd>& x,
             const Eigen::Ref<const Eigen::VectorXd>& u) override;
 
-  void calcDiff(const boost::shared_ptr<crocoddyl::ActionDataAbstract>& data,
+  void calcDiff(const CrocPtr<crocoddyl::ActionDataAbstract>& data,
                 const Eigen::Ref<const Eigen::VectorXd>& x, const Eigen::Ref<const Eigen::VectorXd>& u) override;
 
-  boost::shared_ptr<crocoddyl::ActionDataAbstract> createData() override;
+  CrocPtr<crocoddyl::ActionDataAbstract> createData() override;
+
+#if CROCODDYL_MAJOR_VERSION >= 3
+  std::shared_ptr<crocoddyl::ActionModelBase> cloneAsDouble() const override {
+    return std::make_shared<MujocoDiscreteActionModel>(*this);
+  }
+
+  std::shared_ptr<crocoddyl::ActionModelBase> cloneAsFloat() const override {
+    throw std::runtime_error("MujocoDiscreteActionModel::cloneAsFloat is not implemented");
+  }
+#endif
 
  private:
   void rollout_step(const Eigen::Ref<const Eigen::VectorXd>& x, const Eigen::Ref<const Eigen::VectorXd>& u,
@@ -292,18 +333,18 @@ class MujocoDiscreteActionData final : public crocoddyl::ActionDataAbstract {
   mjData* mj_data;
 };
 
-boost::shared_ptr<crocoddyl::ActionDataAbstract> MujocoDiscreteActionModel::createData() {
-  return boost::make_shared<MujocoDiscreteActionData>(this, model_);
+CrocPtr<crocoddyl::ActionDataAbstract> MujocoDiscreteActionModel::createData() {
+  return croc_make_shared<MujocoDiscreteActionData>(this, model_);
 }
 
-void MujocoDiscreteActionModel::calc(const boost::shared_ptr<crocoddyl::ActionDataAbstract>& data,
+void MujocoDiscreteActionModel::calc(const CrocPtr<crocoddyl::ActionDataAbstract>& data,
                                      const Eigen::Ref<const Eigen::VectorXd>& x,
                                      const Eigen::Ref<const Eigen::VectorXd>& u) {
   auto* d = static_cast<MujocoDiscreteActionData*>(data.get());
   rollout_step(x, u, d->mj_data, &data->xnext, &data->cost);
 }
 
-void MujocoDiscreteActionModel::calcDiff(const boost::shared_ptr<crocoddyl::ActionDataAbstract>& data,
+void MujocoDiscreteActionModel::calcDiff(const CrocPtr<crocoddyl::ActionDataAbstract>& data,
                                          const Eigen::Ref<const Eigen::VectorXd>& x,
                                          const Eigen::Ref<const Eigen::VectorXd>& u) {
   auto* d = static_cast<MujocoDiscreteActionData*>(data.get());
@@ -429,16 +470,16 @@ int main(int argc, char** argv) {
     for (std::size_t i = 0; i < nq; ++i) qf_diag[static_cast<Eigen::Index>(i)] = 50.0;
     for (std::size_t i = nq; i < nx; ++i) qf_diag[static_cast<Eigen::Index>(i)] = 2.0;
 
-    std::vector<boost::shared_ptr<crocoddyl::ActionModelAbstract>> running_models;
+    std::vector<CrocPtr<crocoddyl::ActionModelAbstract>> running_models;
     running_models.reserve(opt.horizon);
     for (std::size_t k = 0; k < opt.horizon; ++k) {
-      running_models.push_back(boost::make_shared<MujocoDiscreteActionModel>(mjm, x_goal, u_hover, q_diag, r_diag));
+      running_models.push_back(croc_make_shared<MujocoDiscreteActionModel>(mjm, x_goal, u_hover, q_diag, r_diag));
     }
     auto terminal_model =
-        boost::make_shared<MujocoDiscreteActionModel>(mjm, x_goal, Eigen::VectorXd(), qf_diag, Eigen::VectorXd(), true);
+        croc_make_shared<MujocoDiscreteActionModel>(mjm, x_goal, Eigen::VectorXd(), qf_diag, Eigen::VectorXd(), true);
 
     auto problem =
-        boost::make_shared<crocoddyl::ShootingProblem>(x0, running_models, terminal_model);
+        croc_make_shared<crocoddyl::ShootingProblem>(x0, running_models, terminal_model);
     crocoddyl::SolverFDDP solver(problem);
 
     std::vector<Eigen::VectorXd> xs_init(opt.horizon + 1, x0);
