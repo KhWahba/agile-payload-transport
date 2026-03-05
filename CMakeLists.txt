@@ -27,7 +27,24 @@ if(NOT EXISTS "${MJ_ROOT}/lib/libmujoco.so")
 endif()
 
 # ONNX Runtime (CPU)
-set(ONNXRUNTIME_ROOT "$ENV{HOME}/imitation-agile-payload-manipulation/deps/agile-payload-transport/deps/onnxruntime" CACHE PATH "ONNX Runtime root directory")
+set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to ONNX Runtime root (contains include/ and lib/)")
+if(NOT ONNXRUNTIME_ROOT)
+  if(DEFINED ENV{ONNXRUNTIME_ROOT})
+    set(ONNXRUNTIME_ROOT "$ENV{ONNXRUNTIME_ROOT}")
+  else()
+    set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/deps/onnxruntime")
+  endif()
+endif()
+
+message(STATUS "ONNXRUNTIME_ROOT = ${ONNXRUNTIME_ROOT}")
+
+if(NOT EXISTS "${ONNXRUNTIME_ROOT}/include/onnxruntime_cxx_api.h")
+  message(FATAL_ERROR "ONNX Runtime headers not found: ${ONNXRUNTIME_ROOT}/include/onnxruntime_cxx_api.h")
+endif()
+
+if(NOT EXISTS "${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so")
+  message(FATAL_ERROR "ONNX Runtime library not found: ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so")
+endif()
 
 find_package(Boost REQUIRED COMPONENTS program_options serialization
                                        stacktrace_basic)
