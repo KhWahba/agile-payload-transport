@@ -161,13 +161,15 @@ PRIVATE ${CROCODDYL_LIBRARIES}
         nmpc_controller)
 
 # ---- Jacobian comparison test ----
-add_executable(test_jacobian_comparison tests/test_jacobian_comparison.cpp)
-target_include_directories(
-  test_jacobian_comparison
-  PUBLIC $<INSTALL_INTERFACE:include>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(test_jacobian_comparison PRIVATE dynobench::dynobench Eigen3::Eigen)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_jacobian_comparison.cpp")
+  add_executable(test_jacobian_comparison tests/test_jacobian_comparison.cpp)
+  target_include_directories(
+    test_jacobian_comparison
+    PUBLIC $<INSTALL_INTERFACE:include>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(test_jacobian_comparison PRIVATE dynobench::dynobench Eigen3::Eigen)
+endif()
 
 if(BUILD_NMPC_PYTHON_BINDINGS)
   pybind11_add_module(nmpc_controller_py MODULE ./src/py_nmpc_controller.cpp)
@@ -179,3 +181,18 @@ if(BUILD_NMPC_PYTHON_BINDINGS)
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   target_link_libraries(nmpc_controller_py PRIVATE nmpc_controller)
 endif()
+
+# ---- Standalone Crocoddyl + MuJoCo OCP demo (no project NMPC code) ----
+add_executable(standalone_mj_croc_ocp ./standalone/standalone_mj_croc_ocp.cpp)
+target_include_directories(
+  standalone_mj_croc_ocp
+  PUBLIC $<INSTALL_INTERFACE:include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         ${CROCODDYL_INCLUDE_DIRS}
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(
+  standalone_mj_croc_ocp
+  PRIVATE ${CROCODDYL_LIBRARIES}
+          Eigen3::Eigen
+          yaml-cpp
+          mujoco::mujoco)
