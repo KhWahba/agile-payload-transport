@@ -5,8 +5,26 @@ project(
   VERSION 0.1.0
   LANGUAGES CXX)
 
-# MuJoCo
-set(MJ_ROOT "$ENV{HOME}/imitation-agile-payload-manipulation/deps/pc-dbCBS/deps/mujoco-3.3.6")
+# --- MuJoCo root (portable, same style as pc-dbCBS) ---
+set(MJ_ROOT "" CACHE PATH "Path to MuJoCo root (contains include/ and lib/)")
+
+if(NOT MJ_ROOT)
+  if(DEFINED ENV{MJ_ROOT})
+    set(MJ_ROOT "$ENV{MJ_ROOT}")
+  else()
+    set(MJ_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../pc-dbCBS/deps/mujoco-3.3.6")
+  endif()
+endif()
+
+message(STATUS "MJ_ROOT = ${MJ_ROOT}")
+
+if(NOT EXISTS "${MJ_ROOT}/include/mujoco/mujoco.h")
+  message(FATAL_ERROR "MuJoCo headers not found: ${MJ_ROOT}/include/mujoco/mujoco.h")
+endif()
+
+if(NOT EXISTS "${MJ_ROOT}/lib/libmujoco.so")
+  message(FATAL_ERROR "MuJoCo library not found: ${MJ_ROOT}/lib/libmujoco.so")
+endif()
 
 # ONNX Runtime (CPU)
 set(ONNXRUNTIME_ROOT "$ENV{HOME}/imitation-agile-payload-manipulation/deps/agile-payload-transport/deps/onnxruntime" CACHE PATH "ONNX Runtime root directory")
