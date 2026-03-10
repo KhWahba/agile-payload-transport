@@ -20,6 +20,7 @@ enum class NmpcMode {
   TrackReferenceNmpcStandard,
   TrackReferenceNmpcRefWarm,
   TrackReferencePolicy,
+  TrackPolicyWarmstartGoal,
   TrackLinearHover,
 };
 
@@ -30,6 +31,9 @@ struct NmpcStepInfo {
   double goal_distance = 0.0;
   double solve_time_ms = 0.0;
   double step_time_ms = 0.0;
+  int ddp_iters = 0;
+  double ddp_cost = 0.0;
+  double ddp_stop = 0.0;
 };
 
 class NmpcController {
@@ -148,6 +152,10 @@ class NmpcController {
   dynobench::Trajectory sol_broken_;
   dynobench::Trajectory sol_;
   dynobench::Trajectory last_solved_window_;
+
+  // Precomputed per-dimension running state weight vector.
+  // Uniform when running_cost_goal_weight_mask=false, goal_weight-shaped otherwise.
+  Eigen::VectorXd running_state_weight_vec_;
 
   Eigen::VectorXd u_prev_exec_;
   Eigen::VectorXd prev_action_policy_;

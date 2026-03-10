@@ -32,6 +32,13 @@ struct Options_trajopt {
   // Running control regularization in track_goal mode (u_hover reference).
   double goal_control_regularization_weight = 50.0;
 
+  // When true, multiply running state tracking weight by goal_weight so that
+  // dimensions irrelevant to the goal (payload quaternion, payload angular
+  // velocity) get zero running cost.  This matches standard quadrotor NMPC
+  // practice where only physically relevant dimensions are penalised in the
+  // running cost.  Default false for backward compatibility.
+  bool running_cost_goal_weight_mask = false;
+
   // Solve cadence for NMPC. 1 means solve every step.
   size_t solve_every_k_steps = 1;
 
@@ -40,6 +47,7 @@ struct Options_trajopt {
   // - track_reference_nmpc_standard
   // - track_reference_nmpc_refwarm
   // - track_reference_policy
+  // - track_policy_warmstart_goal
   // - track_linear_hover (TODO behavior)
   std::string nmpc_mode = "track_goal";
 

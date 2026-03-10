@@ -20,6 +20,7 @@ void Options_trajopt::add_options(po::options_description &desc) {
   set_from_boostop(desc, VAR_WITH_NAME(planner_ref_control_tracking_weight));
   set_from_boostop(desc, VAR_WITH_NAME(policy_ref_control_tracking_weight));
   set_from_boostop(desc, VAR_WITH_NAME(goal_control_regularization_weight));
+  set_from_boostop(desc, VAR_WITH_NAME(running_cost_goal_weight_mask));
   set_from_boostop(desc, VAR_WITH_NAME(solve_every_k_steps));
   set_from_boostop(desc, VAR_WITH_NAME(nmpc_mode));
   set_from_boostop(desc, VAR_WITH_NAME(disturbance_enable));
@@ -51,6 +52,7 @@ void Options_trajopt::__read_from_node(const YAML::Node &node) {
   set_from_yaml(node, VAR_WITH_NAME(planner_ref_control_tracking_weight));
   set_from_yaml(node, VAR_WITH_NAME(policy_ref_control_tracking_weight));
   set_from_yaml(node, VAR_WITH_NAME(goal_control_regularization_weight));
+  set_from_yaml(node, VAR_WITH_NAME(running_cost_goal_weight_mask));
   set_from_yaml(node, VAR_WITH_NAME(solve_every_k_steps));
   set_from_yaml(node, VAR_WITH_NAME(nmpc_mode));
   set_from_yaml(node, VAR_WITH_NAME(disturbance_enable));
@@ -86,6 +88,7 @@ void Options_trajopt::print(std::ostream &out, const std::string &be,
   out << be << STR(planner_ref_control_tracking_weight, af) << std::endl;
   out << be << STR(policy_ref_control_tracking_weight, af) << std::endl;
   out << be << STR(goal_control_regularization_weight, af) << std::endl;
+  out << be << STR(running_cost_goal_weight_mask, af) << std::endl;
   out << be << STR(solve_every_k_steps, af) << std::endl;
   out << be << STR(nmpc_mode, af) << std::endl;
   out << be << STR(disturbance_enable, af) << std::endl;
