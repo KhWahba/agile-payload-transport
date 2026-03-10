@@ -271,6 +271,13 @@ void NmpcController::build_problem_once() {
   ddp_solver_->set_th_stop(options_trajopt_.th_stop);
   ddp_solver_->set_th_acceptnegstep(options_trajopt_.th_acceptnegstep);
 
+  // Precompute per-dimension running state weight vector.
+  if (options_trajopt_.running_cost_goal_weight_mask) {
+    running_state_weight_vec_ = robot_->goal_weight;
+  } else {
+    running_state_weight_vec_ = Eigen::VectorXd::Ones(nx);
+  }
+
   xs_ws_.assign(N_ + 1, problem_->start);
   us_ws_.assign(N_, robot_->u_0);
   problem_built_ = true;
@@ -384,11 +391,12 @@ void NmpcController::update_problem_references() {
   const double w_u_ref_planner = options_trajopt_.planner_ref_control_tracking_weight;
   const double w_u_ref_policy = options_trajopt_.policy_ref_control_tracking_weight;
   const double w_u_goal = options_trajopt_.goal_control_regularization_weight;
+  const Eigen::VectorXd w_x_vec = w_x_ref * running_state_weight_vec_;
   for (std::size_t t = 0; t < N_; ++t) {
     if (!run_state_costs_[t] || !run_control_costs_[t]) continue;
     if (track_reference_active_ && t < ref_traj_N_.states.size()) {
       run_state_costs_[t]->ref = ref_traj_N_.states[t];
-      run_state_costs_[t]->x_weight = Eigen::VectorXd::Constant(nx, w_x_ref);
+      run_state_costs_[t]->x_weight = w_x_vec;
       Eigen::VectorXd uref = (t < ref_traj_N_.actions.size()) ? ref_traj_N_.actions[t] : robot_->u_0;
       run_control_costs_[t]->set_u_ref(uref);
       const bool policy_ref_mode = (mode_ == NmpcMode::TrackReferencePolicy);
@@ -396,7 +404,7 @@ void NmpcController::update_problem_references() {
       run_control_costs_[t]->set_u_weight(w_u_ref * Eigen::VectorXd::Ones(nu));
     } else {
       run_state_costs_[t]->ref = problem_->goal;
-      run_state_costs_[t]->x_weight = Eigen::VectorXd::Constant(nx, w_x_ref);
+      run_state_costs_[t]->x_weight = w_x_vec;
       run_control_costs_[t]->set_u_ref(robot_->u_0);
       run_control_costs_[t]->set_u_weight(w_u_goal * Eigen::VectorXd::Ones(nu));
     }
@@ -434,6 +442,9 @@ NmpcMode NmpcController::parse_mode(const std::string &mode) {
   if (mode == "track_reference_policy") {
     return NmpcMode::TrackReferencePolicy;
   }
+  if (mode == "track_policy_warmstart_goal") {
+    return NmpcMode::TrackPolicyWarmstartGoal;
+  }
   if (mode == "track_linear_hover") {
     return NmpcMode::TrackLinearHover;
   }
@@ -443,7 +454,8 @@ NmpcMode NmpcController::parse_mode(const std::string &mode) {
   throw std::runtime_error(
       "Unknown nmpc_mode '" + mode +
       "'. Valid modes: track_goal, track_reference_nmpc_standard, "
-      "track_reference_nmpc_refwarm, track_reference_policy, track_linear_hover");
+      "track_reference_nmpc_refwarm, track_reference_policy, "
+      "track_policy_warmstart_goal, track_linear_hover");
 }
 
 void NmpcController::ensure_horizon(Trajectory &traj, std::size_t N,
@@ -571,6 +583,12 @@ void NmpcController::setup_from_files(const std::string &prob_file, const std::s
 
   options_trajopt_.read_from_yaml(opt_file);
   mode_ = parse_mode(options_trajopt_.nmpc_mode);
+  if (mode_ == NmpcMode::TrackReferencePolicy && !policy_rollout_as_ref_) {
+    // Backward-compatibility path for older configs that selected the policy
+    // mode and then disabled reference tracking with a separate flag.
+    mode_ = NmpcMode::TrackPolicyWarmstartGoal;
+    options_trajopt_.nmpc_mode = "track_policy_warmstart_goal";
+  }
   solve_every_k_steps_ = std::max<std::size_t>(1, options_trajopt_.solve_every_k_steps);
   disturbance_enable_ = options_trajopt_.disturbance_enable;
   disturbance_start_s_ = options_trajopt_.disturbance_start_s;
@@ -630,9 +648,11 @@ void NmpcController::setup_from_files(const std::string &prob_file, const std::s
   act_mid_ = Eigen::VectorXd::Constant(nu_, 0.5 * (planner_act_high_ + planner_act_low_));
   act_half_ = Eigen::VectorXd::Constant(nu_, 0.5 * (planner_act_high_ - planner_act_low_));
 
-  if (use_policy_onnx_ || mode_ == NmpcMode::TrackReferencePolicy) {
+  if (use_policy_onnx_ || mode_ == NmpcMode::TrackReferencePolicy ||
+      mode_ == NmpcMode::TrackPolicyWarmstartGoal) {
     if (policy_onnx_path_.empty()) {
-      throw std::runtime_error("track_reference_policy mode requires policy_onnx_path");
+      throw std::runtime_error(
+          "policy-driven NMPC modes require policy_onnx_path");
     }
     policy_onnx_ = std::make_unique<PolicyOnnx>(policy_onnx_path_, policy_threads_);
     const int expect_dim = 6 + static_cast<int>(n_quads_ * 12) + static_cast<int>(nu_);
@@ -656,7 +676,8 @@ void NmpcController::setup_from_files(const std::string &prob_file, const std::s
 
 void NmpcController::prepare_window_for_step(int k) {
   switch (mode_) {
-    case NmpcMode::TrackReferencePolicy: {
+    case NmpcMode::TrackReferencePolicy:
+    case NmpcMode::TrackPolicyWarmstartGoal: {
       // New chunk policy contract: output is [H*nu].
       const Eigen::VectorXd obs_feat = build_policy_features(x_init_);
       Eigen::VectorXd flat =
@@ -697,8 +718,15 @@ void NmpcController::prepare_window_for_step(int k) {
       }
       // Rollout warm-start states from measured x_init_ with policy controls.
       rollout_warm_start_states_from_actions();
-      ref_traj_N_ = warm_start_N_;
-      track_reference_active_ = true;
+      if (mode_ == NmpcMode::TrackReferencePolicy) {
+        ref_traj_N_ = warm_start_N_;
+        track_reference_active_ = true;
+      } else {
+        ref_traj_N_.num_time_steps = N_;
+        ref_traj_N_.states.assign(N_ + 1, problem_->goal);
+        ref_traj_N_.actions.assign(N_, robot_->u_0);
+        track_reference_active_ = false;
+      }
       break;
     }
     case NmpcMode::TrackReferenceNmpcRefWarm: {
@@ -772,6 +800,9 @@ NmpcStepInfo NmpcController::step_once(int k) {
     info.did_solve = true;
     info.solve_time_ms =
         std::chrono::duration<double, std::milli>(solve_t1 - solve_t0).count();
+    info.ddp_iters = static_cast<int>(ddp_solver_->get_iter());
+    info.ddp_cost = ddp_solver_->get_cost();
+    info.ddp_stop = ddp_solver_->get_stop();
   }
   if (!have_valid_window_) {
     throw std::runtime_error("No valid control window available after solve");
@@ -781,7 +812,13 @@ NmpcStepInfo NmpcController::step_once(int k) {
   planned_window_idx_++;
 
   const double umax = 1.4;
-  u += 0.5 * control_noise_ * umax * (Eigen::VectorXd::Random(nu_).array() + 1.0).matrix();
+  if (control_noise_ > 0.0) {
+    u += control_noise_ * umax * Eigen::VectorXd::Random(nu_);
+    if (dynamics_->u_lb.size() == static_cast<Eigen::Index>(nu_) &&
+        dynamics_->u_ub.size() == static_cast<Eigen::Index>(nu_)) {
+      u = u.cwiseMax(dynamics_->u_lb).cwiseMin(dynamics_->u_ub);
+    }
+  }
 
   Eigen::VectorXd xnext(nx_);
   robot_->step(xnext, x_init_.head(nx_), u.head(nu_), robot_->ref_dt);
@@ -809,7 +846,9 @@ NmpcStepInfo NmpcController::step_once(int k) {
   }
   const auto step_t1 = std::chrono::steady_clock::now();
   info.step_time_ms = std::chrono::duration<double, std::milli>(step_t1 - step_t0).count();
-  write_policy_debug_step(k, info.did_solve, x_before, u, xnext, info.goal_distance);
+  if (debug_policy_loop_ && (info.did_solve || info.reached_goal || info.failed)) {
+    write_policy_debug_step(k, info.did_solve, x_before, u, xnext, info.goal_distance);
+  }
   return info;
 }
 
@@ -832,10 +871,18 @@ void NmpcController::run() {
   double total_solve_time_ms = 0.0;
   double max_step_time_ms = 0.0;
   double max_solve_time_ms = 0.0;
+  int total_ddp_iters = 0;
+  int max_ddp_iters = 0;
   std::vector<double> step_hz_samples;
   std::vector<double> solve_hz_samples;
+  std::vector<int> ddp_iters_samples;
+  std::vector<double> ddp_cost_samples;
+  std::vector<double> ddp_stop_samples;
   step_hz_samples.reserve(max_steps_);
   solve_hz_samples.reserve(max_steps_);
+  ddp_iters_samples.reserve(max_steps_);
+  ddp_cost_samples.reserve(max_steps_);
+  ddp_stop_samples.reserve(max_steps_);
   const auto run_t0 = std::chrono::steady_clock::now();
 
   if (debug_policy_stream_.is_open()) {
@@ -857,7 +904,6 @@ void NmpcController::run() {
 
   if (!do_optimize_) return;
   for (int k = 0; k < static_cast<int>(max_steps_); ++k) {
-    std::cout << "=== NMPC Step " << k << " ===\n";
     NmpcStepInfo info = step_once(k);
     executed_steps++;
     total_step_time_ms += info.step_time_ms;
@@ -872,17 +918,21 @@ void NmpcController::run() {
       if (info.solve_time_ms > 0.0) {
         solve_hz_samples.push_back(1000.0 / info.solve_time_ms);
       }
-    }
-    if (info.reached_goal) {
-      std::cout << "Goal distance: " << info.goal_distance << std::endl;
+      total_ddp_iters += info.ddp_iters;
+      max_ddp_iters = std::max(max_ddp_iters, info.ddp_iters);
+      ddp_iters_samples.push_back(info.ddp_iters);
+      ddp_cost_samples.push_back(info.ddp_cost);
+      ddp_stop_samples.push_back(info.ddp_stop);
     }
     if (info.failed) {
       std::cout << "Tracking failed: distance (" << info.goal_distance
                 << ") exceeded threshold (" << fail_threshold_ << ") at step " << k << "\n";
       break;
     }
-    if (!info.reached_goal) {
-      std::cout << "Goal distance: " << info.goal_distance << std::endl;
+    if (info.reached_goal) {
+      std::cout << "Reached goal at step " << k
+                << " with distance " << info.goal_distance << "\n";
+      break;
     }
   }
 
@@ -926,6 +976,20 @@ void NmpcController::run() {
   };
   const auto [step_hz_mean_samples, step_hz_std_samples] = mean_std(step_hz_samples);
   const auto [solve_hz_mean_samples, solve_hz_std_samples] = mean_std(solve_hz_samples);
+  const double mean_ddp_iters = solve_count ? (static_cast<double>(total_ddp_iters) / static_cast<double>(solve_count)) : 0.0;
+  auto mean_std_int = [](const std::vector<int>& v) -> std::pair<double, double> {
+    if (v.empty()) return {0.0, 0.0};
+    double mean = 0.0;
+    for (int x : v) mean += static_cast<double>(x);
+    mean /= static_cast<double>(v.size());
+    double var = 0.0;
+    for (int x : v) { const double d = static_cast<double>(x) - mean; var += d * d; }
+    var /= static_cast<double>(v.size());
+    return {mean, std::sqrt(var)};
+  };
+  const auto [ddp_iters_mean, ddp_iters_std] = mean_std_int(ddp_iters_samples);
+  const auto [ddp_cost_mean, ddp_cost_std] = mean_std(ddp_cost_samples);
+  const auto [ddp_stop_mean, ddp_stop_std] = mean_std(ddp_stop_samples);
 
   fs::path timing_path = "nmpc_timing.json";
   if (!timing_output_path_override_.empty()) {
@@ -941,6 +1005,8 @@ void NmpcController::run() {
   if (timing_out) {
     timing_out << "{\n"
                << "  \"mode\": \"" << options_trajopt_.nmpc_mode << "\",\n"
+               << "  \"debug_policy_loop\": " << (debug_policy_loop_ ? "true" : "false") << ",\n"
+               << "  \"control_noise\": " << control_noise_ << ",\n"
                << "  \"solve_every_k_steps\": " << solve_every_k_steps_ << ",\n"
                << "  \"max_steps_configured\": " << max_steps_ << ",\n"
                << "  \"steps_executed\": " << executed_steps << ",\n"
@@ -958,7 +1024,16 @@ void NmpcController::run() {
                << "  \"mean_solve_hz_samples\": " << solve_hz_mean_samples << ",\n"
                << "  \"std_solve_hz_samples\": " << solve_hz_std_samples << ",\n"
                << "  \"max_solve_time_ms\": " << max_solve_time_ms << ",\n"
-               << "  \"run_hz\": " << run_hz << "\n"
+               << "  \"run_hz\": " << run_hz << ",\n"
+               << "  \"total_ddp_iters\": " << total_ddp_iters << ",\n"
+               << "  \"mean_ddp_iters\": " << mean_ddp_iters << ",\n"
+               << "  \"max_ddp_iters\": " << max_ddp_iters << ",\n"
+               << "  \"ddp_iters_mean\": " << ddp_iters_mean << ",\n"
+               << "  \"ddp_iters_std\": " << ddp_iters_std << ",\n"
+               << "  \"ddp_cost_mean\": " << ddp_cost_mean << ",\n"
+               << "  \"ddp_cost_std\": " << ddp_cost_std << ",\n"
+               << "  \"ddp_stop_mean\": " << ddp_stop_mean << ",\n"
+               << "  \"ddp_stop_std\": " << ddp_stop_std << "\n"
                << "}\n";
     last_timing_output_path_ = timing_path.string();
     std::cout << "Saved NMPC timing summary to: " << timing_path.string() << "\n";
